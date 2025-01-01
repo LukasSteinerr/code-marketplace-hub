@@ -7,6 +7,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Create a custom crypto provider for Deno
+const cryptoProvider = Stripe.createSubtleCryptoProvider();
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -15,6 +18,7 @@ serve(async (req) => {
   try {
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
       apiVersion: '2023-10-16',
+      httpClient: Stripe.createFetchHttpClient(), // Use Fetch API for Deno
     });
 
     const signature = req.headers.get('stripe-signature');
@@ -31,11 +35,13 @@ serve(async (req) => {
     let event;
 
     try {
-      // Using the asynchronous version of constructEvent
+      // Use the asynchronous version of constructEvent with the crypto provider
       event = await stripe.webhooks.constructEventAsync(
         body,
         signature,
-        Deno.env.get('STRIPE_WEBHOOK_SECRET') || ''
+        Deno.env.get('STRIPE_WEBHOOK_SECRET') || '',
+        undefined, // Optional: timestamp tolerance
+        cryptoProvider // Pass the custom crypto provider
       );
     } catch (err) {
       console.error('Webhook signature verification failed:', err);
