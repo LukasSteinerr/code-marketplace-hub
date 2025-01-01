@@ -35,7 +35,7 @@ serve(async (req) => {
       .from('sellers')
       .select('stripe_account_id')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
     let accountId = seller?.stripe_account_id;
 

@@ -49,7 +49,7 @@ const ListCode = () => {
         .from("sellers")
         .select("*")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
       return seller;
     },
@@ -57,19 +57,27 @@ const ListCode = () => {
 
   const createSellerAccount = useMutation({
     mutationFn: async () => {
-      const response = await fetch("/api/create-connect-account", {
-        method: "POST",
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session) throw new Error("Not authenticated");
+
+      const response = await supabase.functions.invoke("create-connect-account", {
         headers: {
-          "Authorization": `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          Authorization: `Bearer ${session.session.access_token}`,
         },
       });
       
-      if (!response.ok) {
-        throw new Error("Failed to create Stripe Connect account");
+      if (response.error) {
+        throw new Error(response.error.message);
       }
       
-      const { url } = await response.json();
-      window.location.href = url;
+      window.location.href = response.data.url;
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
