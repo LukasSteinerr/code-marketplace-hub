@@ -18,11 +18,16 @@ serve(async (req) => {
     });
 
     const signature = req.headers.get('stripe-signature');
+    console.log('Received Stripe signature:', signature ? 'present' : 'missing');
+    
     if (!signature) {
       throw new Error('No Stripe signature found');
     }
 
     const body = await req.text();
+    console.log('Webhook raw body length:', body.length);
+    console.log('Webhook secret present:', !!Deno.env.get('STRIPE_WEBHOOK_SECRET'));
+    
     let event;
 
     try {
