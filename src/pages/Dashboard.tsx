@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Filter, Plus } from "lucide-react";
+import { Search, Filter, Plus, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import GameCard from "@/components/GameCard";
@@ -54,6 +54,14 @@ const Dashboard = () => {
             >
               <Plus size={18} />
               List Code
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/profile")}
+              className="flex items-center gap-2"
+            >
+              <User size={18} />
+              Profile
             </Button>
           </div>
         </div>
