@@ -14,25 +14,61 @@ const Profile = () => {
 
   useEffect(() => {
     const getProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        navigate('/login');
-        return;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          navigate('/login');
+          return;
+        }
+
+        // Try to get existing profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (profileError) {
+          throw profileError;
+        }
+
+        // If no profile exists, create one
+        if (!profileData) {
+          const { data: newProfile, error: insertError } = await supabase
+            .from('profiles')
+            .insert([
+              { 
+                id: user.id,
+                username: user.email?.split('@')[0] || null // Use email prefix as initial username
+              }
+            ])
+            .select()
+            .single();
+
+          if (insertError) {
+            throw insertError;
+          }
+
+          setProfile(newProfile);
+        } else {
+          setProfile(profileData);
+        }
+
+        setLoading(false);
+      } catch (error: any) {
+        console.error('Error fetching profile:', error);
+        toast({
+          variant: "destructive",
+          title: "Error loading profile",
+          description: error.message
+        });
+        setLoading(false);
       }
-
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      setProfile(profileData);
-      setLoading(false);
     };
 
     getProfile();
-  }, [navigate]);
+  }, [navigate, toast]);
 
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut();
@@ -64,7 +100,7 @@ const Profile = () => {
           <CardContent className="space-y-4">
             <div>
               <label className="text-sm font-medium text-muted-foreground">Email</label>
-              <p className="text-lg">{profile?.email}</p>
+              <p className="text-lg">{profile?.email || 'Not available'}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Username</label>
