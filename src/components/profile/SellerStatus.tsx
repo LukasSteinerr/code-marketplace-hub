@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SellerStatusProps {
   status: string | null;
@@ -13,17 +14,14 @@ export const SellerStatus = ({ status }: SellerStatusProps) => {
 
   const handleStripeOnboarding = async () => {
     try {
-      const response = await fetch('/api/create-connect-account', {
-        method: 'POST',
+      const { data, error } = await supabase.functions.invoke('create-connect-account', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('sb-token')}`,
+          Authorization: `Bearer ${localStorage.getItem('sb-token')}`,
         },
       });
-
-      const { url, error } = await response.json();
       
-      if (error) throw new Error(error);
-      if (url) window.location.href = url;
+      if (error) throw error;
+      if (data?.url) window.location.href = data.url;
       
     } catch (error: any) {
       toast({
