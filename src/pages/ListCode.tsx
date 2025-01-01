@@ -22,6 +22,9 @@ interface ListCodeForm {
   price: number;
   platform: string;
   code: string;
+  original_value: number;
+  expiration_date: string;
+  region: string;
 }
 
 const ListCode = () => {
@@ -36,6 +39,9 @@ const ListCode = () => {
       price: 0,
       platform: "",
       code: "",
+      original_value: 0,
+      expiration_date: "",
+      region: "",
     },
   });
 
@@ -55,32 +61,6 @@ const ListCode = () => {
     },
   });
 
-  const createSellerAccount = useMutation({
-    mutationFn: async () => {
-      const { data: session } = await supabase.auth.getSession();
-      if (!session.session) throw new Error("Not authenticated");
-
-      const response = await supabase.functions.invoke("create-connect-account", {
-        headers: {
-          Authorization: `Bearer ${session.session.access_token}`,
-        },
-      });
-      
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
-      
-      window.location.href = response.data.url;
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
   const createListing = useMutation({
     mutationFn: async (values: ListCodeForm) => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -92,6 +72,10 @@ const ListCode = () => {
         description: values.description,
         price: values.price,
         platform: values.platform,
+        code_text: values.code,
+        original_value: values.original_value,
+        expiration_date: values.expiration_date,
+        region: values.region,
         status: "available",
       });
 
@@ -129,34 +113,14 @@ const ListCode = () => {
     return <div>Loading...</div>;
   }
 
-  if (!seller) {
-    return (
-      <div className="min-h-screen p-6">
-        <div className="max-w-2xl mx-auto text-center">
-          <h1 className="text-3xl font-bold mb-6">Become a Seller</h1>
-          <p className="mb-6">To list game codes, you need to complete the seller onboarding process.</p>
-          <Button 
-            onClick={() => createSellerAccount.mutate()}
-            disabled={createSellerAccount.isPending}
-          >
-            {createSellerAccount.isPending ? "Setting up..." : "Set up Stripe Connect"}
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (seller.status === "pending" || seller.status === "onboarding") {
+  if (!seller || seller.status !== "active") {
     return (
       <div className="min-h-screen p-6">
         <div className="max-w-2xl mx-auto text-center">
           <h1 className="text-3xl font-bold mb-6">Complete Your Seller Profile</h1>
-          <p className="mb-6">Please complete your Stripe Connect onboarding to start selling.</p>
-          <Button 
-            onClick={() => createSellerAccount.mutate()}
-            disabled={createSellerAccount.isPending}
-          >
-            {createSellerAccount.isPending ? "Setting up..." : "Complete Stripe Setup"}
+          <p className="mb-6">Please complete your seller onboarding to start listing game codes.</p>
+          <Button onClick={() => navigate("/dashboard")}>
+            Return to Dashboard
           </Button>
         </div>
       </div>
@@ -178,9 +142,9 @@ const ListCode = () => {
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Title</FormLabel>
+                  <FormLabel>Game Title</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Enter game title" />
+                    <Input {...field} placeholder="Enter game title" required />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -201,34 +165,88 @@ const ListCode = () => {
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="price"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Price (USD)</FormLabel>
-                  <FormControl>
-                    <Input 
-                      {...field} 
-                      type="number" 
-                      min="0" 
-                      step="0.01"
-                      onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField
+                control={form.control}
+                name="original_value"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Original Value (USD)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        type="number" 
+                        min="0" 
+                        step="0.01"
+                        onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                        required
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="price"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Selling Price (USD)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        type="number" 
+                        min="0" 
+                        step="0.01"
+                        onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                        required
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField
+                control={form.control}
+                name="platform"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Platform</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="e.g., Steam, PlayStation, Xbox" required />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="region"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Region</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="e.g., NA, EU, Global" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <FormField
               control={form.control}
-              name="platform"
+              name="expiration_date"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Platform</FormLabel>
+                  <FormLabel>Expiration Date</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="e.g., Steam, PlayStation, Xbox" />
+                    <Input {...field} type="datetime-local" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -242,7 +260,7 @@ const ListCode = () => {
                 <FormItem>
                   <FormLabel>Game Code</FormLabel>
                   <FormControl>
-                    <Input {...field} type="password" placeholder="Enter the game code" />
+                    <Input {...field} type="password" placeholder="Enter the game code" required />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -261,7 +279,7 @@ const ListCode = () => {
                 type="submit"
                 disabled={createListing.isPending}
               >
-                {createListing.isPending ? "Creating..." : "Create Listing"}
+                {createListing.isPending ? "Publishing..." : "Publish Listing"}
               </Button>
             </div>
           </form>

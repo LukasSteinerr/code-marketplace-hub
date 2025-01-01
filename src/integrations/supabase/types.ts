@@ -11,33 +11,45 @@ export type Database = {
     Tables: {
       game_codes: {
         Row: {
+          code_text: string
           created_at: string
           description: string | null
+          expiration_date: string | null
           id: string
+          original_value: number | null
           platform: string
           price: number
+          region: string | null
           seller_id: string
           status: Database["public"]["Enums"]["code_status"] | null
           title: string
           updated_at: string
         }
         Insert: {
+          code_text: string
           created_at?: string
           description?: string | null
+          expiration_date?: string | null
           id?: string
+          original_value?: number | null
           platform: string
           price: number
+          region?: string | null
           seller_id: string
           status?: Database["public"]["Enums"]["code_status"] | null
           title: string
           updated_at?: string
         }
         Update: {
+          code_text?: string
           created_at?: string
           description?: string | null
+          expiration_date?: string | null
           id?: string
+          original_value?: number | null
           platform?: string
           price?: number
+          region?: string | null
           seller_id?: string
           status?: Database["public"]["Enums"]["code_status"] | null
           title?: string
