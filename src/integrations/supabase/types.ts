@@ -9,6 +9,42 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      game_codes: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          platform: string
+          price: number
+          seller_id: string
+          status: Database["public"]["Enums"]["code_status"] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          platform: string
+          price: number
+          seller_id: string
+          status?: Database["public"]["Enums"]["code_status"] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          platform?: string
+          price?: number
+          seller_id?: string
+          status?: Database["public"]["Enums"]["code_status"] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -38,7 +74,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      code_status: "available" | "sold" | "pending"
     }
     CompositeTypes: {
       [_ in never]: never

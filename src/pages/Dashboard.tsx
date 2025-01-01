@@ -1,39 +1,31 @@
 import { useState } from "react";
-import { Search, Filter } from "lucide-react";
+import { Search, Filter, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import GameCard from "@/components/GameCard";
-
-// Mock data for initial display
-const MOCK_GAMES = [
-  {
-    id: 1,
-    title: "Cyberpunk 2077",
-    price: 39.99,
-    seller: "GameStore",
-    codesAvailable: 5,
-    image: "https://placehold.co/300x400",
-  },
-  {
-    id: 2,
-    title: "Red Dead Redemption 2",
-    price: 44.99,
-    seller: "KeyShop",
-    codesAvailable: 3,
-    image: "https://placehold.co/300x400",
-  },
-  {
-    id: 3,
-    title: "Elden Ring",
-    price: 49.99,
-    seller: "DigitalKeys",
-    codesAvailable: 8,
-    image: "https://placehold.co/300x400",
-  },
-];
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [showListingForm, setShowListingForm] = useState(false);
+
+  const { data: gameCodes, isLoading } = useQuery({
+    queryKey: ['game-codes'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('game_codes')
+        .select('*')
+        .eq('status', 'available');
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const filteredCodes = gameCodes?.filter(code => 
+    code.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen p-6 animate-fadeIn">
@@ -55,14 +47,32 @@ const Dashboard = () => {
               <Filter size={18} />
               Filter
             </Button>
+            <Button onClick={() => setShowListingForm(true)} className="flex items-center gap-2">
+              <Plus size={18} />
+              List Code
+            </Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {MOCK_GAMES.map((game) => (
-            <GameCard key={game.id} game={game} />
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="text-center">Loading...</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredCodes?.map((game) => (
+              <GameCard 
+                key={game.id} 
+                game={{
+                  id: game.id,
+                  title: game.title,
+                  price: game.price,
+                  seller: "Seller",
+                  codesAvailable: 1,
+                  image: "https://placehold.co/300x400",
+                }} 
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

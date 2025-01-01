@@ -1,9 +1,16 @@
 import { ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 interface GameCardProps {
   game: {
-    id: number;
+    id: string;
     title: string;
     price: number;
     seller: string;
@@ -14,25 +21,31 @@ interface GameCardProps {
 
 const GameCard = ({ game }: GameCardProps) => {
   return (
-    <div className="game-card">
-      <img
-        src={game.image}
-        alt={game.title}
-        className="w-full h-48 object-cover rounded-md mb-4"
-      />
-      <h3 className="text-xl font-semibold mb-2">{game.title}</h3>
-      <div className="flex justify-between items-center mb-4">
-        <span className="text-2xl font-bold text-accent">${game.price}</span>
-        <span className="text-sm text-muted-foreground">{game.codesAvailable} codes available</span>
-      </div>
-      <div className="flex justify-between items-center">
-        <span className="text-sm text-muted-foreground">Seller: {game.seller}</span>
-        <Button className="bg-primary hover:bg-primary/90">
+    <Card className="overflow-hidden">
+      <CardHeader className="p-0">
+        <img
+          src={game.image}
+          alt={game.title}
+          className="w-full h-48 object-cover"
+        />
+      </CardHeader>
+      <CardContent className="p-4">
+        <CardTitle className="text-xl mb-2">{game.title}</CardTitle>
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-2xl font-bold text-primary">${game.price}</span>
+          <span className="text-sm text-muted-foreground">
+            {game.codesAvailable} available
+          </span>
+        </div>
+        <p className="text-sm text-muted-foreground">Seller: {game.seller}</p>
+      </CardContent>
+      <CardFooter className="p-4 pt-0">
+        <Button className="w-full">
           <ShoppingCart className="w-4 h-4 mr-2" />
           Buy Now
         </Button>
-      </div>
-    </div>
+      </CardFooter>
+    </Card>
   );
 };
 
