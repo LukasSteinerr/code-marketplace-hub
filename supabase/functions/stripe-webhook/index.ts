@@ -51,7 +51,7 @@ serve(async (req) => {
       );
     }
 
-    console.log('Event type:', event.type);
+    console.log('Processing webhook event:', event.type);
     console.log('Event data:', JSON.stringify(event.data.object, null, 2));
 
     const supabaseClient = createClient(
@@ -64,30 +64,7 @@ serve(async (req) => {
       console.log('Processing account update for ID:', account.id);
       
       try {
-        const accountDetails = await stripe.accounts.retrieve(account.id);
-        console.log('Retrieved account details:', JSON.stringify(accountDetails, null, 2));
-        
-        if (!accountDetails.email) {
-          throw new Error('No email associated with Stripe account');
-        }
-
-        const { data: { users }, error: userError } = await supabaseClient.auth.admin
-          .listUsers();
-
-        if (userError) {
-          console.error('Error fetching users:', userError);
-          throw userError;
-        }
-
-        console.log('Found users count:', users.length);
-        const user = users.find(u => u.email === accountDetails.email);
-        
-        if (!user) {
-          console.error('No user found with email:', accountDetails.email);
-          throw new Error('No user found with matching email');
-        }
-        console.log('Found matching user:', user.id);
-
+        // First, try to find the seller by stripe_account_id
         const { data: existingSeller, error: sellerError } = await supabaseClient
           .from('sellers')
           .select('id')
@@ -111,23 +88,7 @@ serve(async (req) => {
           isActive
         });
 
-        if (!existingSeller) {
-          console.log('Creating new seller record for user:', user.id);
-          const { error: insertError } = await supabaseClient
-            .from('sellers')
-            .insert({ 
-              id: user.id,
-              stripe_account_id: account.id,
-              status: isActive ? 'active' : 'pending',
-              updated_at: new Date().toISOString(),
-            });
-
-          if (insertError) {
-            console.error('Error creating seller record:', insertError);
-            throw insertError;
-          }
-          console.log('Successfully created seller record');
-        } else {
+        if (existingSeller) {
           console.log('Updating existing seller:', existingSeller.id);
           const { error: updateError } = await supabaseClient
             .from('sellers')
@@ -142,6 +103,10 @@ serve(async (req) => {
             throw updateError;
           }
           console.log('Successfully updated seller record');
+        } else {
+          console.error('No seller found for Stripe account:', account.id);
+          // We'll just log this case instead of throwing an error
+          // This can happen during initial account creation
         }
       } catch (error) {
         console.error('Error processing account update:', error);
