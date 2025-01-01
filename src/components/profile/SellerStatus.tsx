@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { CheckCircle, AlertCircle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
@@ -13,6 +13,7 @@ export const SellerStatus = ({ status: initialStatus }: SellerStatusProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [status, setStatus] = useState(initialStatus);
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     const checkSellerStatus = async () => {
@@ -49,6 +50,25 @@ export const SellerStatus = ({ status: initialStatus }: SellerStatusProps) => {
             setStatus('active');
           }
         }
+
+        // Handle redirect from Stripe onboarding
+        const redirectStatus = searchParams.get('status');
+        if (redirectStatus) {
+          if (redirectStatus === 'success') {
+            toast({
+              title: "Onboarding in progress",
+              description: "Your seller account is being reviewed. This may take a few minutes.",
+            });
+          } else {
+            toast({
+              title: "Onboarding incomplete",
+              description: "Please complete the onboarding process to start selling.",
+              variant: "destructive",
+            });
+          }
+          // Clear the URL parameters
+          navigate('/profile', { replace: true });
+        }
       } catch (error: any) {
         console.error('Status check error:', error);
         toast({
@@ -60,7 +80,7 @@ export const SellerStatus = ({ status: initialStatus }: SellerStatusProps) => {
     };
 
     checkSellerStatus();
-  }, [toast]);
+  }, [toast, navigate, searchParams]);
 
   const handleStripeOnboarding = async () => {
     try {
