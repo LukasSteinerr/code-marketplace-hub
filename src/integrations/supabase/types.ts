@@ -66,6 +66,30 @@ export type Database = {
         }
         Relationships: []
       }
+      sellers: {
+        Row: {
+          created_at: string
+          id: string
+          status: Database["public"]["Enums"]["seller_status"] | null
+          stripe_account_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          status?: Database["public"]["Enums"]["seller_status"] | null
+          stripe_account_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          status?: Database["public"]["Enums"]["seller_status"] | null
+          stripe_account_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -75,6 +99,7 @@ export type Database = {
     }
     Enums: {
       code_status: "available" | "sold" | "pending"
+      seller_status: "pending" | "onboarding" | "active" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never

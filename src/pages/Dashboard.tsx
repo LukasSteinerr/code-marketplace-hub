@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Search, Filter, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -7,8 +8,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [showListingForm, setShowListingForm] = useState(false);
 
   const { data: gameCodes, isLoading } = useQuery({
     queryKey: ['game-codes'],
@@ -47,7 +48,10 @@ const Dashboard = () => {
               <Filter size={18} />
               Filter
             </Button>
-            <Button onClick={() => setShowListingForm(true)} className="flex items-center gap-2">
+            <Button 
+              onClick={() => navigate("/list-code")} 
+              className="flex items-center gap-2"
+            >
               <Plus size={18} />
               List Code
             </Button>
