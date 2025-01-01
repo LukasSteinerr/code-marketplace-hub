@@ -14,9 +14,15 @@ export const SellerStatus = ({ status }: SellerStatusProps) => {
 
   const handleStripeOnboarding = async () => {
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('No active session');
+      }
+
       const { data, error } = await supabase.functions.invoke('create-connect-account', {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('sb-token')}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
       });
       
@@ -24,6 +30,7 @@ export const SellerStatus = ({ status }: SellerStatusProps) => {
       if (data?.url) window.location.href = data.url;
       
     } catch (error: any) {
+      console.error('Onboarding error:', error);
       toast({
         variant: "destructive",
         title: "Error starting onboarding",
