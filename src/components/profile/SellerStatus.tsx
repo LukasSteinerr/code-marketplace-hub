@@ -3,14 +3,64 @@ import { CheckCircle, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
 
 interface SellerStatusProps {
   status: string | null;
 }
 
-export const SellerStatus = ({ status }: SellerStatusProps) => {
+export const SellerStatus = ({ status: initialStatus }: SellerStatusProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [status, setStatus] = useState(initialStatus);
+
+  useEffect(() => {
+    const checkSellerStatus = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        // Get seller status
+        const { data: sellerData, error: sellerError } = await supabase
+          .from('sellers')
+          .select('status, stripe_account_id')
+          .eq('id', session.user.id)
+          .maybeSingle();
+
+        if (sellerError) throw sellerError;
+
+        if (sellerData?.stripe_account_id) {
+          // If we have a stripe_account_id, check the account status
+          const { data, error } = await supabase.functions.invoke('check-account-status', {
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          });
+
+          if (error) throw error;
+          if (data?.status === 'active') {
+            // Update seller status in database
+            const { error: updateError } = await supabase
+              .from('sellers')
+              .update({ status: 'active' })
+              .eq('id', session.user.id);
+
+            if (updateError) throw updateError;
+            setStatus('active');
+          }
+        }
+      } catch (error: any) {
+        console.error('Status check error:', error);
+        toast({
+          variant: "destructive",
+          title: "Error checking seller status",
+          description: error.message
+        });
+      }
+    };
+
+    checkSellerStatus();
+  }, [toast]);
 
   const handleStripeOnboarding = async () => {
     try {
