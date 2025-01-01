@@ -52,20 +52,30 @@ serve(async (req) => {
     if (event.type === 'account.updated') {
       const account = event.data.object;
       
-      // Find the seller by stripe_account_id
-      const { data: seller, error: findError } = await supabaseClient
+      // Get the Stripe account details to find the associated email
+      const accountDetails = await stripe.accounts.retrieve(account.id);
+      
+      if (!accountDetails.email) {
+        throw new Error('No email associated with Stripe account');
+      }
+
+      // Find the user by email
+      const { data: { users }, error: userError } = await supabaseClient.auth.admin
+        .listUsers();
+
+      if (userError) throw userError;
+
+      const user = users.find(u => u.email === accountDetails.email);
+      if (!user) {
+        throw new Error('No user found with matching email');
+      }
+
+      // Check if seller exists
+      const { data: existingSeller } = await supabaseClient
         .from('sellers')
         .select('id')
         .eq('stripe_account_id', account.id)
-        .single();
-
-      if (findError) {
-        throw findError;
-      }
-
-      if (!seller) {
-        throw new Error('Seller not found');
-      }
+        .maybeSingle();
 
       // Check if the account is fully onboarded
       const isActive = 
@@ -73,20 +83,34 @@ serve(async (req) => {
         account.details_submitted && 
         account.payouts_enabled;
 
-      // Update seller status
-      const { error: updateError } = await supabaseClient
-        .from('sellers')
-        .update({ 
-          status: isActive ? 'active' : 'pending',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', seller.id);
+      if (!existingSeller) {
+        // Create new seller record
+        console.log('Creating new seller record for user:', user.id);
+        const { error: insertError } = await supabaseClient
+          .from('sellers')
+          .insert({ 
+            id: user.id,
+            stripe_account_id: account.id,
+            status: isActive ? 'active' : 'pending',
+            updated_at: new Date().toISOString(),
+          });
 
-      if (updateError) {
-        throw updateError;
+        if (insertError) throw insertError;
+      } else {
+        // Update existing seller
+        console.log('Updating existing seller:', existingSeller.id);
+        const { error: updateError } = await supabaseClient
+          .from('sellers')
+          .update({ 
+            status: isActive ? 'active' : 'pending',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingSeller.id);
+
+        if (updateError) throw updateError;
       }
 
-      console.log(`Updated seller ${seller.id} status to ${isActive ? 'active' : 'pending'}`);
+      console.log(`Updated seller status to ${isActive ? 'active' : 'pending'}`);
     }
 
     return new Response(JSON.stringify({ received: true }), {
