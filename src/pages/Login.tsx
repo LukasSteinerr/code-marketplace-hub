@@ -1,72 +1,47 @@
-import { useState } from "react";
+import { Auth } from "@supabase/auth-ui-react";
+import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/ui/use-toast";
+import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Login = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const navigate = useNavigate();
-  const { toast } = useToast();
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    // For demo purposes, we'll just navigate to dashboard
-    if (email && password) {
-      navigate("/dashboard");
-    } else {
-      toast({
-        title: "Error",
-        description: "Please fill in all fields",
-        variant: "destructive",
-      });
-    }
-  };
+  useEffect(() => {
+    // Check if user is already logged in
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        navigate("/dashboard");
+      }
+    });
+  }, [navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-background">
       <div className="w-full max-w-md space-y-8 animate-fadeIn">
         <div className="text-center">
-          <h2 className="text-4xl font-bold text-white mb-2">GameKeys Market</h2>
+          <h2 className="text-4xl font-bold text-foreground mb-2">GameKeys Market</h2>
           <p className="text-muted-foreground">Your trusted game code marketplace</p>
         </div>
         
-        <form onSubmit={handleLogin} className="mt-8 space-y-6">
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-white mb-2">
-                Email address
-              </label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="auth-input"
-                placeholder="Enter your email"
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-white mb-2">
-                Password
-              </label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="auth-input"
-                placeholder="Enter your password"
-              />
-            </div>
-          </div>
-
-          <Button type="submit" className="w-full bg-primary hover:bg-primary/90">
-            Sign in
-          </Button>
-        </form>
+        <div className="bg-card p-6 rounded-lg shadow-lg border border-border">
+          <Auth
+            supabaseClient={supabase}
+            appearance={{
+              theme: ThemeSupa,
+              variables: {
+                default: {
+                  colors: {
+                    brand: 'hsl(var(--primary))',
+                    brandAccent: 'hsl(var(--primary))',
+                  },
+                },
+              },
+            }}
+            providers={[]}
+            redirectTo={window.location.origin}
+          />
+        </div>
       </div>
     </div>
   );
