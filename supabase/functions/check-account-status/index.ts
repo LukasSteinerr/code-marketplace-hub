@@ -15,7 +15,7 @@ serve(async (req) => {
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '', // Using service role key to bypass RLS
     );
 
     const authHeader = req.headers.get('Authorization')!;
@@ -43,15 +43,39 @@ serve(async (req) => {
 
     // Get Stripe account status
     const account = await stripe.accounts.retrieve(seller.stripe_account_id);
+    console.log('Stripe account status:', {
+      charges_enabled: account.charges_enabled,
+      details_submitted: account.details_submitted,
+      payouts_enabled: account.payouts_enabled,
+    });
 
-    // Check if the account is fully onboarded
-    const isActive = 
-      account.charges_enabled && 
-      account.details_submitted && 
-      account.payouts_enabled;
+    let status;
+    if (account.charges_enabled && account.details_submitted && account.payouts_enabled) {
+      status = 'active';
+    } else if (account.details_submitted) {
+      status = 'pending';
+    } else {
+      status = 'onboarding';
+    }
+
+    // Update seller status in database
+    const { error: updateError } = await supabaseClient
+      .from('sellers')
+      .update({ 
+        status: status,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', user.id);
+
+    if (updateError) {
+      console.error('Error updating seller status:', updateError);
+      throw updateError;
+    }
+
+    console.log('Successfully updated seller status to:', status);
 
     return new Response(
-      JSON.stringify({ status: isActive ? 'active' : 'pending' }),
+      JSON.stringify({ status }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
