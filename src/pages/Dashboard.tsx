@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Filter, Plus, User } from "lucide-react";
+import { Search, Filter, Plus, User, Package } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import GameCard from "@/components/GameCard";
@@ -19,7 +19,13 @@ const Dashboard = () => {
       console.log('Fetching game codes...');
       const { data, error } = await supabase
         .from('game_codes')
-        .select('*')
+        .select(`
+          *,
+          profiles:seller_id (
+            username,
+            avatar_url
+          )
+        `)
         .eq('status', 'available');
       
       if (error) {
@@ -47,17 +53,18 @@ const Dashboard = () => {
     code.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  console.log('Filtered codes:', filteredCodes);
-
   return (
     <div className="min-h-screen gradient-bg p-6">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header Section with Glass Effect */}
         <div className="glass-card rounded-xl p-6 animate-fade-in">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              Game Keys Marketplace
-            </h1>
+            <div className="flex items-center gap-3">
+              <Package className="h-8 w-8 text-primary" />
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                Available Game Keys
+              </h1>
+            </div>
             <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
               <div className="relative flex-1 md:w-80 group">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -123,9 +130,12 @@ const Dashboard = () => {
                     id: game.id,
                     title: game.title,
                     price: game.price,
-                    seller: "Seller",
+                    seller: game.profiles?.username || "Anonymous",
                     codesAvailable: 1,
-                    image: "https://placehold.co/300x400",
+                    image: "https://placehold.co/600x400",
+                    platform: game.platform,
+                    region: game.region,
+                    originalValue: game.original_value,
                   }}
                 />
               </div>
@@ -136,6 +146,7 @@ const Dashboard = () => {
         {/* Empty State */}
         {filteredCodes?.length === 0 && !isLoading && !error && (
           <div className="text-center py-20 glass-card animate-fade-in">
+            <Package className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
             <h2 className="text-2xl font-semibold text-foreground">No game codes found</h2>
             <p className="text-muted-foreground mt-2">Try adjusting your search criteria</p>
           </div>
