@@ -13,7 +13,7 @@ type GameCode = Database['public']['Tables']['game_codes']['Row'];
 type Profile = Database['public']['Tables']['profiles']['Row'];
 
 type GameCodeWithProfile = GameCode & {
-  profiles: Profile;
+  seller_profile: Profile | null;
 };
 
 const Dashboard = () => {
@@ -29,7 +29,7 @@ const Dashboard = () => {
         .from('game_codes')
         .select(`
           *,
-          profiles(*)
+          seller_profile:profiles(*)
         `)
         .eq('status', 'available');
       
@@ -135,7 +135,7 @@ const Dashboard = () => {
                     id: game.id,
                     title: game.title,
                     price: game.price,
-                    seller: game.profiles?.username || "Anonymous",
+                    seller: game.seller_profile?.username || "Anonymous",
                     codesAvailable: 1,
                     image: "https://placehold.co/600x400",
                     platform: game.platform,
