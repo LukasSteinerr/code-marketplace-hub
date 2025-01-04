@@ -36,13 +36,6 @@ export const DeleteAccount = () => {
 
       if (profileError) throw profileError;
 
-      // Delete the user's auth account
-      const { error: authError } = await supabase.auth.admin.deleteUser(
-        session.user.id
-      );
-
-      if (authError) throw authError;
-
       // Sign out
       await supabase.auth.signOut();
       navigate('/login');
