@@ -67,27 +67,55 @@ serve(async (req) => {
         }
       );
 
-      // Get the game code and update its status
-      const { data, error: updateError } = await supabaseAdmin
+      // Get the game code and seller information
+      const { data: gameData, error: gameError } = await supabaseAdmin
+        .from('game_codes')
+        .select(`
+          code_text,
+          title,
+          seller_id,
+          sellers!inner (
+            stripe_account_id
+          )
+        `)
+        .eq('id', gameId)
+        .eq('status', 'available')
+        .single();
+
+      if (gameError) {
+        console.error('Error fetching game code:', gameError);
+        throw new Error(`Error fetching game code: ${gameError.message}`);
+      }
+
+      if (!gameData) {
+        console.error('No game code found or already sold');
+        throw new Error('Failed to find available game code');
+      }
+
+      // Update game code status
+      const { error: updateError } = await supabaseAdmin
         .from('game_codes')
         .update({ 
           status: 'sold',
           updated_at: new Date().toISOString()
         })
-        .eq('id', gameId)
-        .eq('status', 'available')
-        .select('code_text, title')
-        .single();
+        .eq('id', gameId);
 
       if (updateError) {
         console.error('Error updating game code:', updateError);
         throw new Error(`Error updating game code: ${updateError.message}`);
       }
 
-      if (!data) {
-        console.error('No game code was updated - it may not exist or already be sold');
-        throw new Error('Failed to update game code status');
-      }
+      // Transfer payment to seller
+      const transfer = await stripe.transfers.create({
+        amount: session.amount_total * 0.8, // 80% to seller, 20% platform fee
+        currency: session.currency,
+        destination: gameData.sellers.stripe_account_id,
+        transfer_group: `game_${gameId}`,
+        description: `Payment for game code ${gameId}`,
+      });
+
+      console.log('Transfer created:', transfer.id);
 
       // Send email with game code to customer using Resend's default domain
       const emailResponse = await fetch('https://api.resend.com/emails', {
@@ -99,12 +127,12 @@ serve(async (req) => {
         body: JSON.stringify({
           from: 'Acme <onboarding@resend.dev>', // Using Resend's default sending domain
           to: customerEmail,
-          subject: `Your Game Code for ${data.title}`,
+          subject: `Your Game Code for ${gameData.title}`,
           html: `
             <h1>Thank you for your purchase!</h1>
-            <p>Here is your game code for ${data.title}:</p>
+            <p>Here is your game code for ${gameData.title}:</p>
             <div style="background-color: #f4f4f4; padding: 15px; margin: 20px 0; border-radius: 5px;">
-              <code style="font-size: 18px; font-weight: bold;">${data.code_text}</code>
+              <code style="font-size: 18px; font-weight: bold;">${gameData.code_text}</code>
             </div>
             <p>Please redeem this code on the appropriate platform.</p>
             <p>If you have any issues, please contact our support team.</p>
@@ -118,7 +146,7 @@ serve(async (req) => {
         throw new Error('Failed to send game code email');
       }
 
-      console.log('Successfully updated game code status and sent email to customer');
+      console.log('Successfully processed sale and sent email');
     }
 
     return new Response(JSON.stringify({ received: true }), {
