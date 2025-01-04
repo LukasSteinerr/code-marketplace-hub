@@ -67,65 +67,27 @@ serve(async (req) => {
         }
       );
 
-      // Get the game code and seller information
-      const { data: gameData, error: gameError } = await supabaseAdmin
-        .from('game_codes')
-        .select(`
-          code_text,
-          title,
-          seller_id,
-          sellers (
-            stripe_account_id
-          )
-        `)
-        .eq('id', gameId)
-        .eq('status', 'available')
-        .single();
-
-      if (gameError) {
-        console.error('Error fetching game code:', gameError);
-        throw new Error(`Error fetching game code: ${gameError.message}`);
-      }
-
-      if (!gameData) {
-        console.error('No game code found or code already sold');
-        throw new Error('Failed to find available game code');
-      }
-
-      // Update game code status to pending (in escrow)
+      // Update game code status to sold
       const { error: updateError } = await supabaseAdmin
         .from('game_codes')
         .update({ 
-          status: 'pending',
+          status: 'sold',
           updated_at: new Date().toISOString()
         })
-        .eq('id', gameId)
-        .eq('status', 'available');
+        .eq('id', gameId);
 
       if (updateError) {
         console.error('Error updating game code:', updateError);
         throw new Error(`Error updating game code: ${updateError.message}`);
       }
 
-      // Store payment intent ID for later transfer
-      const { error: paymentError } = await supabaseAdmin
-        .from('payments')
-        .insert({
-          game_code_id: gameId,
-          payment_intent_id: session.payment_intent,
-          amount: session.amount_total,
-          buyer_email: customerEmail,
-          seller_id: gameData.seller_id,
-          stripe_account_id: gameData.sellers?.stripe_account_id,
-          status: 'pending'
-        });
-
-      if (paymentError) {
-        console.error('Error storing payment info:', paymentError);
-        throw new Error(`Error storing payment info: ${paymentError.message}`);
-      }
-
       // Send email with game code to customer
+      const { data: gameData } = await supabaseAdmin
+        .from('game_codes')
+        .select('code_text, title')
+        .eq('id', gameId)
+        .single();
+
       const emailResponse = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -142,8 +104,7 @@ serve(async (req) => {
             <div style="background-color: #f4f4f4; padding: 15px; margin: 20px 0; border-radius: 5px;">
               <code style="font-size: 18px; font-weight: bold;">${gameData.code_text}</code>
             </div>
-            <p>Please redeem this code on the appropriate platform and confirm that it works.</p>
-            <p>Click here to confirm the code works: ${Deno.env.get('SUPABASE_URL')}/confirm-code/${gameId}</p>
+            <p>Please redeem this code on the appropriate platform.</p>
             <p>If you have any issues, please contact our support team.</p>
           `,
         }),
