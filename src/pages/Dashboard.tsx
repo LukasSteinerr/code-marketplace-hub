@@ -7,6 +7,14 @@ import GameCard from "@/components/GameCard";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Database } from "@/integrations/supabase/types";
+
+type GameCodeWithProfile = Database['public']['Tables']['game_codes']['Row'] & {
+  profiles: {
+    username: string | null;
+    avatar_url: string | null;
+  } | null;
+};
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -34,7 +42,7 @@ const Dashboard = () => {
       }
       
       console.log('Fetched game codes:', data);
-      return data;
+      return data as GameCodeWithProfile[];
     },
     meta: {
       errorMessage: "Failed to load game codes. Please try again.",
