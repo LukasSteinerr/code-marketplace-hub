@@ -14,12 +14,11 @@ const GameDetails = () => {
   const { data: game, isLoading } = useQuery({
     queryKey: ['game', id],
     queryFn: async () => {
-      // Updated query to properly join with profiles table
       const { data: gameData, error } = await supabase
         .from('game_codes')
         .select(`
           *,
-          seller:seller_id (
+          profiles!game_codes_seller_id_fkey(
             username,
             avatar_url
           )
@@ -165,7 +164,7 @@ const GameDetails = () => {
                 
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <User className="w-4 h-4" />
-                  <span>Seller: {game.seller?.username || 'Anonymous'}</span>
+                  <span>Seller: {game.profiles?.username || 'Anonymous'}</span>
                 </div>
 
                 {game.expiration_date && (
