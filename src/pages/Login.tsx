@@ -29,13 +29,16 @@ const Login = () => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth event:', event); // Add this to help debug
+      console.log('Auth event:', event, 'Session:', session); // Enhanced logging
+      
       if (event === 'SIGNED_IN' && session) {
+        console.log('User signed in successfully:', session.user);
         navigate("/dashboard");
       } else if (event === 'TOKEN_REFRESHED' && session) {
+        console.log('Token refreshed:', session);
         navigate("/dashboard");
       } else if (event === 'SIGNED_OUT') {
-        // Clear local storage and session storage
+        console.log('User signed out');
         localStorage.clear();
         sessionStorage.clear();
         toast({
@@ -44,6 +47,7 @@ const Login = () => {
           variant: "default",
         });
       } else if (event === 'USER_UPDATED') {
+        console.log('User profile updated');
         toast({
           title: "Profile Updated",
           description: "Your profile has been updated",
@@ -91,7 +95,7 @@ const Login = () => {
               },
             }}
             providers={["google"]}
-            redirectTo={window.location.origin}
+            redirectTo={`${window.location.origin}/dashboard`}
             onlyThirdPartyProviders
           />
         </div>
