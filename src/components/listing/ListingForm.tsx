@@ -1,22 +1,18 @@
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { GameDetailsSection } from "./GameDetailsSection";
+import { PriceSection } from "./PriceSection";
+import { PlatformSection } from "./PlatformSection";
+import { GameTitle } from "@/constants/games";
 
-interface ListCodeForm {
-  title: string;
+export interface ListCodeForm {
+  title: GameTitle;
   description: string;
   price: number;
   platform: string;
@@ -32,7 +28,7 @@ export const ListingForm = () => {
 
   const form = useForm<ListCodeForm>({
     defaultValues: {
-      title: "",
+      title: undefined,
       description: "",
       price: 0,
       platform: "",
@@ -86,107 +82,9 @@ export const ListingForm = () => {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Game Title</FormLabel>
-              <FormControl>
-                <Input {...field} placeholder="Enter game title" required />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Textarea {...field} placeholder="Enter game description" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormField
-            control={form.control}
-            name="original_value"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Original Value (USD)</FormLabel>
-                <FormControl>
-                  <Input 
-                    {...field} 
-                    type="number" 
-                    min="0" 
-                    step="0.01"
-                    onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                    required
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="price"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Selling Price (USD)</FormLabel>
-                <FormControl>
-                  <Input 
-                    {...field} 
-                    type="number" 
-                    min="0" 
-                    step="0.01"
-                    onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                    required
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormField
-            control={form.control}
-            name="platform"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Platform</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder="e.g., Steam, PlayStation, Xbox" required />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="region"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Region</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder="e.g., NA, EU, Global" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+        <GameDetailsSection form={form} />
+        <PriceSection form={form} />
+        <PlatformSection form={form} />
 
         <FormField
           control={form.control}
