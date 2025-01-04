@@ -29,6 +29,7 @@ const Login = () => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth event:', event); // Add this to help debug
       if (event === 'SIGNED_IN' && session) {
         navigate("/dashboard");
       } else if (event === 'TOKEN_REFRESHED' && session) {
@@ -74,14 +75,25 @@ const Login = () => {
               variables: {
                 default: {
                   colors: {
-                    brand: 'hsl(var(--primary))',
-                    brandAccent: 'hsl(var(--primary))',
+                    brand: '#4F46E5',
+                    brandAccent: '#4338CA',
+                    brandButtonText: 'white',
                   },
+                },
+              },
+              style: {
+                button: {
+                  borderRadius: '6px',
+                  height: '40px',
+                },
+                container: {
+                  gap: '16px',
                 },
               },
             }}
             providers={["google"]}
             redirectTo={window.location.origin}
+            onlyThirdPartyProviders
           />
         </div>
       </div>
