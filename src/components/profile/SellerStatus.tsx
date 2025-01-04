@@ -116,23 +116,24 @@ export const SellerStatus = ({ status: initialStatus }: SellerStatusProps) => {
         throw new Error('No active session');
       }
 
-      // Delete existing seller record
-      const { error: deleteError } = await supabase
-        .from('sellers')
-        .delete()
-        .eq('id', session.user.id);
+      // Call the edge function to handle both Stripe account deletion and database cleanup
+      const { error } = await supabase.functions.invoke('restart-connect-account', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
 
-      if (deleteError) throw deleteError;
+      if (error) throw error;
 
       // Start new onboarding process
-      const { data, error } = await supabase.functions.invoke('create-connect-account', {
+      const { data: newAccountData, error: createError } = await supabase.functions.invoke('create-connect-account', {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
       });
       
-      if (error) throw error;
-      if (data?.url) window.location.href = data.url;
+      if (createError) throw createError;
+      if (newAccountData?.url) window.location.href = newAccountData.url;
 
     } catch (error: any) {
       console.error('Restart onboarding error:', error);
