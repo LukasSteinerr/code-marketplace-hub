@@ -15,14 +15,20 @@ serve(async (req) => {
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
     );
 
     const authHeader = req.headers.get('Authorization')!;
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user } } = await supabaseClient.auth.getUser(token);
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
 
-    if (!user) {
+    if (userError || !user) {
       throw new Error('Not authenticated');
     }
 
@@ -30,14 +36,14 @@ serve(async (req) => {
       apiVersion: '2023-10-16',
     });
 
-    // Create or retrieve Stripe Connect account
-    let { data: seller } = await supabaseClient
+    // Check if seller already exists
+    const { data: existingSeller } = await supabaseClient
       .from('sellers')
       .select('stripe_account_id')
       .eq('id', user.id)
       .maybeSingle();
 
-    let accountId = seller?.stripe_account_id;
+    let accountId = existingSeller?.stripe_account_id;
 
     if (!accountId) {
       // Create new Connect account
@@ -51,21 +57,26 @@ serve(async (req) => {
       });
       accountId = account.id;
 
-      // Save the account ID
-      await supabaseClient
+      // Create the seller record
+      const { error: insertError } = await supabaseClient
         .from('sellers')
         .insert({
           id: user.id,
           stripe_account_id: accountId,
           status: 'onboarding',
         });
+
+      if (insertError) {
+        console.error('Error creating seller record:', insertError);
+        throw insertError;
+      }
     }
 
     // Create account link for onboarding
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
-      refresh_url: `${req.headers.get('origin')}/list-code`,
-      return_url: `${req.headers.get('origin')}/list-code`,
+      refresh_url: `${req.headers.get('origin')}/profile`,
+      return_url: `${req.headers.get('origin')}/profile?status=success`,
       type: 'account_onboarding',
     });
 
