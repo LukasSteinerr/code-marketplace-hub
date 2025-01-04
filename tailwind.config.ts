@@ -19,11 +19,11 @@ export default {
     },
     extend: {
       colors: {
-        border: "#E5DEFF",
-        input: "#F1F0FB",
-        ring: "#D3E4FD",
-        background: "#FFFFFF",
-        foreground: "#403E43",
+        border: "#2A2A3C",
+        input: "#1A1A2E",
+        ring: "#2A2A3C",
+        background: "#0F0F1A",
+        foreground: "#E2E2E6",
         primary: {
           DEFAULT: "#6366F1",
           foreground: "#FFFFFF",
@@ -37,16 +37,16 @@ export default {
           foreground: "#FFFFFF",
         },
         muted: {
-          DEFAULT: "#F1F0FB",
-          foreground: "#6B7280",
+          DEFAULT: "#1A1A2E",
+          foreground: "#A1A1AA",
         },
         accent: {
           DEFAULT: "#818CF8",
           foreground: "#FFFFFF",
         },
         card: {
-          DEFAULT: "#F8F9FF",
-          foreground: "#403E43",
+          DEFAULT: "#1A1A2E",
+          foreground: "#E2E2E6",
         },
       },
       borderRadius: {
