@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno&no-check';
+import Stripe from 'https://esm.sh/stripe@14.21.0';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
@@ -7,155 +7,55 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const cryptoProvider = Stripe.createSubtleCryptoProvider();
-
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const STRIPE_CHECKOUT_WEBHOOK_SECRET = Deno.env.get('STRIPE_CHECKOUT_WEBHOOK_SECRET');
+    if (!STRIPE_CHECKOUT_WEBHOOK_SECRET) {
+      throw new Error('STRIPE_CHECKOUT_WEBHOOK_SECRET is not set');
+    }
+
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
       apiVersion: '2023-10-16',
       httpClient: Stripe.createFetchHttpClient(),
     });
 
-    // Get the signature from the headers
+    // Clone the request to read it multiple times
+    const clonedReq = req.clone();
     const signature = req.headers.get('stripe-signature');
-    console.log('Received webhook with signature:', signature);
-    
-    if (!signature) {
-      console.error('No Stripe signature found in headers');
-      return new Response(
-        JSON.stringify({ 
-          error: 'No Stripe signature found', 
-          details: 'The webhook request is missing the stripe-signature header'
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400,
-        }
-      );
-    }
+    const body = await clonedReq.text();
 
-    // Create a copy of the request to read the body multiple times if needed
-    const reqClone = req.clone();
-    
-    // Get the raw request body
-    const rawBody = await reqClone.text();
-    console.log('Raw body length:', rawBody.length);
-    console.log('Raw body:', rawBody);
-    
-    if (!Deno.env.get('STRIPE_WEBHOOK_SECRET')) {
-      console.error('STRIPE_WEBHOOK_SECRET is not set');
-      return new Response(
-        JSON.stringify({ 
-          error: 'Configuration error', 
-          details: 'STRIPE_WEBHOOK_SECRET is not configured'
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500,
-        }
-      );
-    }
+    console.log('Raw body:', body);
+    console.log('Signature:', signature);
 
-    // Verify the event
-    let event;
-    try {
-      event = await stripe.webhooks.constructEventAsync(
-        rawBody,
-        signature,
-        Deno.env.get('STRIPE_WEBHOOK_SECRET') || '',
-        undefined,
-        cryptoProvider
-      );
-      console.log('Successfully constructed event:', event.type);
-    } catch (err) {
-      console.error('Webhook signature verification failed:', {
-        error: err.message,
-        type: err.type,
-        stack: err.stack,
-        signature,
-        bodyLength: rawBody.length
-      });
-      return new Response(
-        JSON.stringify({ 
-          error: 'Webhook signature verification failed', 
-          details: err.message,
-          type: err.type
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400,
-        }
-      );
-    }
-
-    console.log('Processing webhook event:', event.type);
-
-    // Create a Supabase client with admin privileges
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    const event = await stripe.webhooks.constructEventAsync(
+      body,
+      signature!,
+      STRIPE_CHECKOUT_WEBHOOK_SECRET,
     );
+
+    console.log('Event type:', event.type);
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
-      console.log('Processing successful checkout session:', session.id);
+      const gameId = session.metadata.gameId;
 
-      if (!session.metadata?.gameId) {
-        console.error('No gameId found in session metadata');
-        return new Response(
-          JSON.stringify({ 
-            error: 'Invalid session data', 
-            details: 'No gameId found in session metadata'
-          }),
-          { 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 400,
-          }
-        );
-      }
+      const supabaseClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      );
 
-      try {
-        // Update game code status to 'sold'
-        const { error: updateError } = await supabaseAdmin
-          .from('game_codes')
-          .update({ 
-            status: 'sold',
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', session.metadata.gameId)
-          .eq('status', 'available'); // Only update if it's still available
+      // Update the game code status to sold
+      const { error: updateError } = await supabaseClient
+        .from('game_codes')
+        .update({ status: 'sold' })
+        .eq('id', gameId);
 
-        if (updateError) {
-          console.error('Error updating game code status:', {
-            error: updateError.message,
-            details: updateError.details,
-            hint: updateError.hint
-          });
-          throw updateError;
-        }
-        
-        console.log('Successfully marked game code as sold:', session.metadata.gameId);
-      } catch (error) {
-        console.error('Database operation failed:', {
-          error: error.message,
-          details: error.details,
-          hint: error.hint
-        });
-        return new Response(
-          JSON.stringify({ 
-            error: 'Database operation failed', 
-            details: error.message
-          }),
-          { 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 500,
-          }
-        );
+      if (updateError) {
+        throw new Error(`Error updating game code: ${updateError.message}`);
       }
     }
 
@@ -164,20 +64,12 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error) {
-    console.error('Webhook processing failed:', {
-      error: error.message,
-      stack: error.stack,
-      type: error.type
-    });
+    console.error('Error:', error);
     return new Response(
-      JSON.stringify({ 
-        error: 'Webhook processing failed', 
-        details: error.message,
-        type: error.type
-      }),
-      { 
+      JSON.stringify({ error: error.message }),
+      {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
+        status: 400,
       }
     );
   }
