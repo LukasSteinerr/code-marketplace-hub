@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { ProfileNav } from "@/components/profile/ProfileNav";
 import { DeleteAccount } from "@/components/profile/DeleteAccount";
-import { SellerStatus } from "@/components/profile/SellerStatus";
+import { SellerStatus } from "@/components/profile/seller/SellerStatus";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,7 +55,6 @@ const Profile = () => {
         };
       } catch (error: any) {
         console.error('Profile auth error:', error);
-        // Handle invalid/expired session
         await supabase.auth.signOut();
         toast({
           title: "Session expired",
@@ -73,14 +72,11 @@ const Profile = () => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {
-        console.error("Logout error:", error);
-        // If we get a 403/user not found error, we can consider the user already logged out
         if (error.status === 403) {
           toast({
             title: "Already logged out",
             description: "Your session has expired. Redirecting to login...",
           });
-          // Clear any remaining session data and redirect
           await supabase.auth.signOut({ scope: 'local' });
           navigate("/login");
           return;
@@ -95,7 +91,6 @@ const Profile = () => {
       navigate("/login");
     } catch (error: any) {
       console.error("Logout error:", error);
-      // Force local signout in case of errors
       await supabase.auth.signOut({ scope: 'local' });
       toast({
         title: "Error during logout",
@@ -107,25 +102,29 @@ const Profile = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
-      <ProfileNav />
-      
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">Profile Settings</h1>
-          <Button 
-            variant="outline" 
-            onClick={handleLogout}
-            className="flex items-center gap-2"
-          >
-            <LogOut className="h-4 w-4" />
-            Logout
-          </Button>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
+      <div className="container mx-auto p-6 max-w-4xl">
+        <ProfileNav />
+        
+        <div className="space-y-6 animate-fade-in">
+          <div className="flex justify-between items-center">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              Profile Settings
+            </h1>
+            <Button 
+              variant="outline"
+              onClick={handleLogout}
+              className="flex items-center gap-2 hover:bg-muted/50 transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+              Logout
+            </Button>
+          </div>
 
-        <div className="grid gap-6">
-          <SellerStatus status={sellerStatus} />
-          <DeleteAccount />
+          <div className="grid gap-6 bg-card/30 backdrop-blur-sm rounded-xl p-6 border border-border/50 shadow-xl">
+            <SellerStatus status={sellerStatus} />
+            <DeleteAccount />
+          </div>
         </div>
       </div>
     </div>
