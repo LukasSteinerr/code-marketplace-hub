@@ -30,13 +30,16 @@ const Dashboard = () => {
       console.log('Fetched game codes:', data);
       return data;
     },
-    onError: (error) => {
-      console.error('Query error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load game codes. Please try again.",
-        variant: "destructive",
-      });
+    meta: {
+      errorMessage: "Failed to load game codes. Please try again.",
+      onError: (error: Error) => {
+        console.error('Query error:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load game codes. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   });
 
