@@ -41,11 +41,17 @@ serve(async (req) => {
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
-      const gameId = session.metadata.gameId;
+      const gameId = session.metadata?.gameId;
+
+      if (!gameId) {
+        throw new Error('No gameId found in session metadata');
+      }
+
+      console.log('Processing completed checkout for game:', gameId);
 
       const supabaseClient = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '', // Using service role key for admin access
       );
 
       // Update the game code status to sold
@@ -55,8 +61,11 @@ serve(async (req) => {
         .eq('id', gameId);
 
       if (updateError) {
+        console.error('Error updating game code:', updateError);
         throw new Error(`Error updating game code: ${updateError.message}`);
       }
+
+      console.log('Successfully updated game code status to sold');
     }
 
     return new Response(JSON.stringify({ received: true }), {
