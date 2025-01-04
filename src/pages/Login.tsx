@@ -149,15 +149,18 @@ const Login = () => {
               },
             }}
             providers={[]}
-            onError={(error) => {
-              console.error('Auth error:', error);
-              if (error.message.includes('user_already_exists')) {
-                toast({
-                  title: "Account Exists",
-                  description: "An account with this email already exists. Please sign in instead.",
-                  variant: "default",
-                });
-              }
+            localization={{
+              variables: {
+                sign_up: {
+                  email_label: 'Email',
+                  password_label: 'Password',
+                  button_label: 'Sign up',
+                  loading_button_label: 'Signing up...',
+                  social_provider_text: 'Sign in with {{provider}}',
+                  link_text: 'Don\'t have an account? Sign up',
+                  confirmation_text: 'Check your email for the confirmation link',
+                },
+              },
             }}
           />
         </div>
