@@ -15,6 +15,7 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [userEmail, setUserEmail] = useState<string>("");
 
   useEffect(() => {
     getProfile();
@@ -27,6 +28,8 @@ const Profile = () => {
         navigate('/login');
         return;
       }
+
+      setUserEmail(session.user.email || "");
 
       const { data, error } = await supabase
         .from('profiles')
@@ -104,7 +107,7 @@ const Profile = () => {
               <Input
                 type="text"
                 disabled
-                value={supabase.auth.getSession() || ""}
+                value={userEmail}
                 className="max-w-md"
               />
             </div>
