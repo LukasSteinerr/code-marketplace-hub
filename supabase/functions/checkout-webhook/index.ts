@@ -13,7 +13,6 @@ serve(async (req) => {
   }
 
   try {
-    // Get the stripe signature from the request headers
     const signature = req.headers.get('stripe-signature');
 
     if (!signature) {
@@ -21,22 +20,17 @@ serve(async (req) => {
       throw new Error('No stripe signature found');
     }
 
-    // Get the raw body as text
     const body = await req.text();
-
-    // Initialize Stripe
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
       apiVersion: '2023-10-16',
     });
 
-    // Verify the webhook signature
     const webhookSecret = Deno.env.get('STRIPE_CHECKOUT_WEBHOOK_SECRET');
     if (!webhookSecret) {
       console.error('Webhook secret not found');
       throw new Error('Webhook secret not found');
     }
 
-    // Use constructEventAsync instead of constructEvent
     const event = await stripe.webhooks.constructEventAsync(
       body,
       signature,
@@ -48,15 +42,20 @@ serve(async (req) => {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       const gameId = session.metadata?.gameId;
+      const customerEmail = session.customer_details?.email;
 
       if (!gameId) {
         console.error('No gameId found in session metadata');
         throw new Error('No gameId found in session metadata');
       }
 
+      if (!customerEmail) {
+        console.error('No customer email found in session');
+        throw new Error('No customer email found in session');
+      }
+
       console.log('Processing completed checkout for game:', gameId);
 
-      // Initialize Supabase client with service role key
       const supabaseAdmin = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -68,7 +67,7 @@ serve(async (req) => {
         }
       );
 
-      // Update the game code status to sold
+      // Get the game code and update its status
       const { data, error: updateError } = await supabaseAdmin
         .from('game_codes')
         .update({ 
@@ -77,7 +76,7 @@ serve(async (req) => {
         })
         .eq('id', gameId)
         .eq('status', 'available')
-        .select()
+        .select('code_text, title')
         .single();
 
       if (updateError) {
@@ -90,7 +89,35 @@ serve(async (req) => {
         throw new Error('Failed to update game code status');
       }
 
-      console.log('Successfully updated game code status to sold:', data);
+      // Send email with game code to customer
+      const emailResponse = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${Deno.env.get('RESEND_API_KEY')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'Game Store <orders@yourdomain.com>',
+          to: customerEmail,
+          subject: `Your Game Code for ${data.title}`,
+          html: `
+            <h1>Thank you for your purchase!</h1>
+            <p>Here is your game code for ${data.title}:</p>
+            <div style="background-color: #f4f4f4; padding: 15px; margin: 20px 0; border-radius: 5px;">
+              <code style="font-size: 18px; font-weight: bold;">${data.code_text}</code>
+            </div>
+            <p>Please redeem this code on the appropriate platform.</p>
+            <p>If you have any issues, please contact our support team.</p>
+          `,
+        }),
+      });
+
+      if (!emailResponse.ok) {
+        console.error('Failed to send email:', await emailResponse.text());
+        throw new Error('Failed to send game code email');
+      }
+
+      console.log('Successfully updated game code status and sent email to customer');
     }
 
     return new Response(JSON.stringify({ received: true }), {
