@@ -22,7 +22,7 @@ export type Database = {
           region: string | null
           seller_id: string
           status: Database["public"]["Enums"]["code_status"] | null
-          title: string
+          title: Database["public"]["Enums"]["game_title"]
           updated_at: string
         }
         Insert: {
@@ -37,7 +37,7 @@ export type Database = {
           region?: string | null
           seller_id: string
           status?: Database["public"]["Enums"]["code_status"] | null
-          title: string
+          title: Database["public"]["Enums"]["game_title"]
           updated_at?: string
         }
         Update: {
@@ -52,7 +52,7 @@ export type Database = {
           region?: string | null
           seller_id?: string
           status?: Database["public"]["Enums"]["code_status"] | null
-          title?: string
+          title?: Database["public"]["Enums"]["game_title"]
           updated_at?: string
         }
         Relationships: []
@@ -111,6 +111,22 @@ export type Database = {
     }
     Enums: {
       code_status: "available" | "sold" | "pending"
+      game_title:
+        | "Call of Duty: Modern Warfare"
+        | "Red Dead Redemption 2"
+        | "Grand Theft Auto V"
+        | "The Legend of Zelda: Breath of the Wild"
+        | "FIFA 24"
+        | "Minecraft"
+        | "Cyberpunk 2077"
+        | "Assassin's Creed Valhalla"
+        | "God of War Ragnarök"
+        | "Elden Ring"
+        | "Spider-Man 2"
+        | "Super Mario Odyssey"
+        | "The Last of Us Part II"
+        | "Horizon Forbidden West"
+        | "Resident Evil 4 Remake"
       seller_status: "pending" | "onboarding" | "active" | "rejected"
     }
     CompositeTypes: {
