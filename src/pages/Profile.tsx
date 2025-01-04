@@ -102,28 +102,32 @@ const Profile = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
+    <div className="min-h-screen gradient-bg">
       <div className="container mx-auto p-6 max-w-4xl">
-        <ProfileNav />
+        <div className="glass-card rounded-xl p-6 mb-6">
+          <ProfileNav />
+        </div>
         
-        <div className="space-y-6 animate-fade-in">
-          <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              Profile Settings
-            </h1>
-            <Button 
-              variant="outline"
-              onClick={handleLogout}
-              className="flex items-center gap-2 hover:bg-muted/50 transition-colors"
-            >
-              <LogOut className="h-4 w-4" />
-              Logout
-            </Button>
-          </div>
+        <div className="space-y-6 animate-fadeIn">
+          <div className="glass-card rounded-xl p-6">
+            <div className="flex justify-between items-center">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                Profile Settings
+              </h1>
+              <Button 
+                variant="outline"
+                onClick={handleLogout}
+                className="flex items-center gap-2 hover:bg-muted/50 transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                Logout
+              </Button>
+            </div>
 
-          <div className="grid gap-6 bg-card/30 backdrop-blur-sm rounded-xl p-6 border border-border/50 shadow-xl">
-            <SellerStatus status={sellerStatus} />
-            <DeleteAccount />
+            <div className="mt-8 grid gap-6">
+              <SellerStatus status={sellerStatus} />
+              <DeleteAccount />
+            </div>
           </div>
         </div>
       </div>
