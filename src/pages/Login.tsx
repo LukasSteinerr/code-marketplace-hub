@@ -3,17 +3,42 @@ import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const Login = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user is already logged in
-    supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
+    // Clear any existing session data on mount
+    const clearSession = async () => {
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      if (error) {
+        console.error('Error clearing session:', error);
+      }
+    };
+    
+    clearSession();
+
+    // Set up auth state listener
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
         navigate("/dashboard");
+      } else if (event === 'TOKEN_REFRESHED' && session) {
+        navigate("/dashboard");
+      } else if (event === 'SIGNED_OUT') {
+        // Clear local storage and session storage
+        localStorage.clear();
+        sessionStorage.clear();
       }
     });
+
+    // Cleanup subscription
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [navigate]);
 
   return (
@@ -40,6 +65,14 @@ const Login = () => {
             }}
             providers={["google"]}
             redirectTo={window.location.origin}
+            onError={(error) => {
+              console.error('Auth error:', error);
+              toast({
+                title: "Authentication Error",
+                description: error.message,
+                variant: "destructive",
+              });
+            }}
           />
         </div>
       </div>
