@@ -38,17 +38,16 @@ const Login = () => {
         // Clear local storage and session storage
         localStorage.clear();
         sessionStorage.clear();
-      } else if (event === 'USER_DELETED') {
         toast({
-          title: "Account Deleted",
-          description: "Your account has been successfully deleted",
+          title: "Signed Out",
+          description: "You have been successfully signed out",
           variant: "default",
         });
-      } else if (event === 'AUTH_ERROR') {
+      } else if (event === 'USER_UPDATED') {
         toast({
-          title: "Authentication Error",
-          description: "There was an error during authentication",
-          variant: "destructive",
+          title: "Profile Updated",
+          description: "Your profile has been updated",
+          variant: "default",
         });
       }
     });
