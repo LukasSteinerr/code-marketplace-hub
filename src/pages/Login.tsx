@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Github, Twitter, Discord } from "lucide-react";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -53,17 +54,17 @@ const Login = () => {
     };
   }, [navigate, toast]);
 
-  const loginWithGoogle = async () => {
+  const loginWithProvider = async (provider: 'google' | 'github' | 'twitter' | 'discord') => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+        provider,
         options: {
           redirectTo: `${window.location.origin}/dashboard`
         }
       });
       
       if (error) {
-        console.error('Error signing in with Google:', error);
+        console.error(`Error signing in with ${provider}:`, error);
         toast({
           title: "Sign In Error",
           description: error.message,
@@ -71,7 +72,7 @@ const Login = () => {
         });
       }
     } catch (err) {
-      console.error('Error during Google sign in:', err);
+      console.error(`Error during ${provider} sign in:`, err);
       toast({
         title: "Sign In Error",
         description: "An unexpected error occurred",
@@ -88,9 +89,9 @@ const Login = () => {
           <p className="text-muted-foreground">Your trusted game code marketplace</p>
         </div>
         
-        <div className="bg-card p-6 rounded-lg shadow-lg border border-border">
+        <div className="bg-card p-6 rounded-lg shadow-lg border border-border space-y-4">
           <Button
-            onClick={loginWithGoogle}
+            onClick={() => loginWithProvider('google')}
             className="w-full flex items-center justify-center gap-2"
             variant="outline"
           >
@@ -113,6 +114,33 @@ const Login = () => {
               />
             </svg>
             Sign in with Google
+          </Button>
+
+          <Button
+            onClick={() => loginWithProvider('github')}
+            className="w-full flex items-center justify-center gap-2"
+            variant="outline"
+          >
+            <Github className="w-5 h-5" />
+            Sign in with GitHub
+          </Button>
+
+          <Button
+            onClick={() => loginWithProvider('twitter')}
+            className="w-full flex items-center justify-center gap-2"
+            variant="outline"
+          >
+            <Twitter className="w-5 h-5" />
+            Sign in with Twitter
+          </Button>
+
+          <Button
+            onClick={() => loginWithProvider('discord')}
+            className="w-full flex items-center justify-center gap-2"
+            variant="outline"
+          >
+            <Discord className="w-5 h-5" />
+            Sign in with Discord
           </Button>
         </div>
       </div>
