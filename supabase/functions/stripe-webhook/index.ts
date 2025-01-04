@@ -7,8 +7,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const cryptoProvider = Stripe.createSubtleCryptoProvider();
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -20,6 +18,7 @@ serve(async (req) => {
       httpClient: Stripe.createFetchHttpClient(),
     });
 
+    // Get the signature from the headers
     const signature = req.headers.get('stripe-signature');
     console.log('Received Stripe signature:', signature ? 'present' : 'missing');
     
@@ -27,18 +26,18 @@ serve(async (req) => {
       throw new Error('No Stripe signature found');
     }
 
+    // Get the raw request body as text
     const body = await req.text();
     console.log('Webhook raw body length:', body.length);
     console.log('Webhook secret present:', !!Deno.env.get('STRIPE_WEBHOOK_SECRET'));
-    
+
+    // Verify the event
     let event;
     try {
-      event = await stripe.webhooks.constructEventAsync(
+      event = stripe.webhooks.constructEvent(
         body,
         signature,
-        Deno.env.get('STRIPE_WEBHOOK_SECRET') || '',
-        undefined,
-        cryptoProvider
+        Deno.env.get('STRIPE_WEBHOOK_SECRET') || ''
       );
     } catch (err) {
       console.error('Webhook signature verification failed:', err);
