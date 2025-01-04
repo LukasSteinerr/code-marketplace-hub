@@ -7,6 +7,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import ListCode from "./pages/ListCode";
 import Profile from "./pages/Profile";
+import GameDetails from "./pages/GameDetails";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/list-code" element={<ListCode />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/game/:id" element={<GameDetails />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>

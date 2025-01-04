@@ -1,6 +1,5 @@
 import { ShoppingCart, Globe2, Monitor } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
 import {
   Card,
   CardContent,
@@ -8,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 interface GameCardProps {
   game: {
@@ -25,40 +24,7 @@ interface GameCardProps {
 }
 
 const GameCard = ({ game }: GameCardProps) => {
-  const { toast } = useToast();
-
-  const handleBuyNow = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        toast({
-          title: "Authentication required",
-          description: "Please sign in to purchase game codes",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: { gameId: game.id }
-      });
-
-      if (error) throw error;
-
-      if (data?.url) {
-        window.location.href = data.url;
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to initiate checkout. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
+  const navigate = useNavigate();
   const discount = game.originalValue 
     ? Math.round(((game.originalValue - game.price) / game.originalValue) * 100)
     : 0;
@@ -111,10 +77,10 @@ const GameCard = ({ game }: GameCardProps) => {
       <CardFooter className="p-4 pt-0">
         <Button 
           className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-all duration-300"
-          onClick={handleBuyNow}
+          onClick={() => navigate(`/game/${game.id}`)}
         >
           <ShoppingCart className="w-4 h-4 mr-2" />
-          Buy Now
+          View Details
         </Button>
       </CardFooter>
     </Card>
