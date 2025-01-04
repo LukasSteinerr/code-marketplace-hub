@@ -39,9 +39,13 @@ serve(async (req) => {
       );
     }
 
+    // Create a copy of the request to read the body multiple times if needed
+    const reqClone = req.clone();
+    
     // Get the raw request body
-    const rawBody = await req.text();
+    const rawBody = await reqClone.text();
     console.log('Raw body length:', rawBody.length);
+    console.log('Raw body:', rawBody);
     
     if (!Deno.env.get('STRIPE_WEBHOOK_SECRET')) {
       console.error('STRIPE_WEBHOOK_SECRET is not set');
@@ -67,11 +71,14 @@ serve(async (req) => {
         undefined,
         cryptoProvider
       );
+      console.log('Successfully constructed event:', event.type);
     } catch (err) {
       console.error('Webhook signature verification failed:', {
         error: err.message,
         type: err.type,
-        stack: err.stack
+        stack: err.stack,
+        signature,
+        bodyLength: rawBody.length
       });
       return new Response(
         JSON.stringify({ 
