@@ -36,8 +36,8 @@ serve(async (req) => {
       throw new Error('Webhook secret not found');
     }
 
-    // Construct the event
-    const event = stripe.webhooks.constructEvent(
+    // Use constructEventAsync instead of constructEvent
+    const event = await stripe.webhooks.constructEventAsync(
       body,
       signature,
       webhookSecret
