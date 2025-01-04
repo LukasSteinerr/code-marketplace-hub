@@ -32,7 +32,17 @@ const GameDetails = () => {
         .single();
 
       if (error) throw error;
-      return gameData as GameWithProfile;
+      
+      // Ensure the response matches our expected type
+      if (!gameData) throw new Error('Game not found');
+      
+      // Transform the data to ensure it matches our type
+      const transformedData: GameWithProfile = {
+        ...gameData,
+        profiles: gameData.profiles as Profile | null
+      };
+
+      return transformedData;
     }
   });
 
