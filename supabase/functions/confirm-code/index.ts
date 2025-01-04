@@ -26,16 +26,29 @@ serve(async (req) => {
       }
     );
 
-    // Get payment information
-    const { data: payment, error: paymentError } = await supabaseAdmin
-      .from('payments')
-      .select('*')
-      .eq('game_code_id', gameId)
-      .eq('status', 'pending')
+    // Get game code details
+    const { data: game, error: gameError } = await supabaseAdmin
+      .from('game_codes')
+      .select(`
+        *,
+        sellers (
+          stripe_account_id
+        )
+      `)
+      .eq('id', gameId)
       .single();
 
-    if (paymentError || !payment) {
-      throw new Error('Payment not found');
+    if (gameError || !game) {
+      throw new Error('Game code not found');
+    }
+
+    if (!game.payment_intent_id) {
+      throw new Error('No payment found for this game code');
+    }
+
+    const sellerStripeAccountId = game.sellers?.stripe_account_id;
+    if (!sellerStripeAccountId) {
+      throw new Error('Seller not properly configured');
     }
 
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
@@ -43,46 +56,57 @@ serve(async (req) => {
     });
 
     // Transfer the funds to the seller
-    if (payment.stripe_account_id) {
-      try {
-        const transfer = await stripe.transfers.create({
-          amount: Math.floor(payment.amount * 0.8), // 80% to seller, 20% platform fee
-          currency: 'usd',
-          destination: payment.stripe_account_id,
-          transfer_group: `game_${gameId}`,
-          description: `Payment for game code ${gameId}`,
-        });
-        console.log('Transfer created:', transfer.id);
-      } catch (transferError) {
-        console.error('Failed to transfer funds to seller:', transferError);
-        throw transferError;
-      }
-    }
+    const transfer = await stripe.transfers.create({
+      amount: Math.round(game.price * 90), // 90% of the price (10% platform fee)
+      currency: 'usd',
+      destination: sellerStripeAccountId,
+      transfer_group: `game_${gameId}`,
+      description: `Payment for game code ${gameId}`,
+    });
 
-    // Update payment status
-    const { error: updatePaymentError } = await supabaseAdmin
-      .from('payments')
-      .update({ 
-        status: 'completed',
-        completed_at: new Date().toISOString()
-      })
-      .eq('id', payment.id);
-
-    if (updatePaymentError) {
-      throw updatePaymentError;
-    }
+    console.log('Transfer created:', transfer.id);
 
     // Update game code status
-    const { error: updateGameError } = await supabaseAdmin
+    const { error: updateError } = await supabaseAdmin
       .from('game_codes')
       .update({ 
         status: 'sold',
+        payment_status: 'released',
         updated_at: new Date().toISOString()
       })
       .eq('id', gameId);
 
-    if (updateGameError) {
-      throw updateGameError;
+    if (updateError) {
+      throw updateError;
+    }
+
+    // Send email with game code to buyer
+    const emailResponse = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Deno.env.get('RESEND_API_KEY')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'Acme <onboarding@resend.dev>',
+        to: game.buyer_email,
+        subject: `Your Game Code for ${game.title}`,
+        html: `
+          <h1>Thank you for your purchase!</h1>
+          <p>Here is your game code for ${game.title}:</p>
+          <div style="background-color: #f4f4f4; padding: 15px; margin: 20px 0; border-radius: 5px;">
+            <code style="font-size: 18px; font-weight: bold;">${game.code_text}</code>
+          </div>
+          <p>Please redeem this code on the appropriate platform.</p>
+          <p>If you have any issues, please contact our support team.</p>
+        `,
+      }),
+    });
+
+    if (!emailResponse.ok) {
+      const errorText = await emailResponse.text();
+      console.error('Failed to send email:', errorText);
+      throw new Error('Failed to send game code email');
     }
 
     return new Response(

@@ -50,38 +50,39 @@ serve(async (req) => {
     const amount = Math.round(game.price * 100); // Convert to cents
     const applicationFeeAmount = Math.round(amount * 0.10); // 10% platform fee
 
-    // Create Stripe session with destination charge configuration
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: game.title,
-              description: game.description || undefined,
-            },
-            unit_amount: amount,
-          },
-          quantity: 1,
-        },
-      ],
-      mode: 'payment',
-      success_url: `${req.headers.get('origin')}/dashboard?success=true`,
-      cancel_url: `${req.headers.get('origin')}/dashboard?canceled=true`,
+    // Create PaymentIntent instead of a Checkout Session
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount,
+      currency: 'usd',
+      application_fee_amount: applicationFeeAmount,
       metadata: {
         gameId: game.id,
+        sellerId: game.seller_id,
       },
-      payment_intent_data: {
-        application_fee_amount: applicationFeeAmount,
-        transfer_data: {
-          destination: sellerStripeAccountId,
-        },
+      automatic_payment_methods: {
+        enabled: true,
       },
     });
 
+    // Update game code with payment intent ID
+    const { error: updateError } = await supabaseClient
+      .from('game_codes')
+      .update({ 
+        payment_intent_id: paymentIntent.id,
+        payment_status: 'pending'
+      })
+      .eq('id', gameId);
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    console.log('Payment intent created:', paymentIntent.id);
     return new Response(
-      JSON.stringify({ url: session.url }),
+      JSON.stringify({ 
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id 
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,

@@ -39,22 +39,16 @@ serve(async (req) => {
 
     console.log('Processing webhook event:', event.type);
 
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object;
-      const gameId = session.metadata?.gameId;
-      const customerEmail = session.customer_details?.email;
+    if (event.type === 'payment_intent.succeeded') {
+      const paymentIntent = event.data.object;
+      const gameId = paymentIntent.metadata.gameId;
 
       if (!gameId) {
-        console.error('No gameId found in session metadata');
-        throw new Error('No gameId found in session metadata');
+        console.error('No gameId found in payment intent metadata');
+        throw new Error('No gameId found in payment intent metadata');
       }
 
-      if (!customerEmail) {
-        console.error('No customer email found in session');
-        throw new Error('No customer email found in session');
-      }
-
-      console.log('Processing completed checkout for game:', gameId);
+      console.log('Processing successful payment for game:', gameId);
 
       const supabaseAdmin = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
@@ -67,11 +61,11 @@ serve(async (req) => {
         }
       );
 
-      // Update game code status to sold
+      // Update game code status to paid
       const { error: updateError } = await supabaseAdmin
         .from('game_codes')
         .update({ 
-          status: 'sold',
+          payment_status: 'paid',
           updated_at: new Date().toISOString()
         })
         .eq('id', gameId);
@@ -81,42 +75,7 @@ serve(async (req) => {
         throw new Error(`Error updating game code: ${updateError.message}`);
       }
 
-      // Send email with game code to customer
-      const { data: gameData } = await supabaseAdmin
-        .from('game_codes')
-        .select('code_text, title')
-        .eq('id', gameId)
-        .single();
-
-      const emailResponse = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${Deno.env.get('RESEND_API_KEY')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: 'Acme <onboarding@resend.dev>',
-          to: customerEmail,
-          subject: `Your Game Code for ${gameData.title}`,
-          html: `
-            <h1>Thank you for your purchase!</h1>
-            <p>Here is your game code for ${gameData.title}:</p>
-            <div style="background-color: #f4f4f4; padding: 15px; margin: 20px 0; border-radius: 5px;">
-              <code style="font-size: 18px; font-weight: bold;">${gameData.code_text}</code>
-            </div>
-            <p>Please redeem this code on the appropriate platform.</p>
-            <p>If you have any issues, please contact our support team.</p>
-          `,
-        }),
-      });
-
-      if (!emailResponse.ok) {
-        const errorText = await emailResponse.text();
-        console.error('Failed to send email:', errorText);
-        throw new Error('Failed to send game code email');
-      }
-
-      console.log('Successfully processed sale and sent email');
+      console.log('Successfully processed payment');
     }
 
     return new Response(JSON.stringify({ received: true }), {

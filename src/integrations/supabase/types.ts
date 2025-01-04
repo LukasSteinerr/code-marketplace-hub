@@ -11,6 +11,7 @@ export type Database = {
     Tables: {
       game_codes: {
         Row: {
+          buyer_id: string | null
           category: Database["public"]["Enums"]["game_category"]
           code_text: string
           created_at: string
@@ -18,6 +19,8 @@ export type Database = {
           expiration_date: string | null
           id: string
           original_value: number | null
+          payment_intent_id: string | null
+          payment_status: string | null
           platform: string
           price: number
           region: string | null
@@ -27,6 +30,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          buyer_id?: string | null
           category?: Database["public"]["Enums"]["game_category"]
           code_text: string
           created_at?: string
@@ -34,6 +38,8 @@ export type Database = {
           expiration_date?: string | null
           id?: string
           original_value?: number | null
+          payment_intent_id?: string | null
+          payment_status?: string | null
           platform: string
           price: number
           region?: string | null
@@ -43,6 +49,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          buyer_id?: string | null
           category?: Database["public"]["Enums"]["game_category"]
           code_text?: string
           created_at?: string
@@ -50,6 +57,8 @@ export type Database = {
           expiration_date?: string | null
           id?: string
           original_value?: number | null
+          payment_intent_id?: string | null
+          payment_status?: string | null
           platform?: string
           price?: number
           region?: string | null
