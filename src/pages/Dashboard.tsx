@@ -51,11 +51,22 @@ const Dashboard = () => {
     code.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const getGameImage = (title: string) => {
+    // This is a temporary solution - you might want to store actual game images in Supabase storage
+    const gameImages: Record<string, string> = {
+      "Red Dead Redemption 2": "https://upload.wikimedia.org/wikipedia/en/4/44/Red_Dead_Redemption_II.jpg",
+      "The Legend of Zelda: Breath of the Wild": "https://upload.wikimedia.org/wikipedia/en/c/c6/The_Legend_of_Zelda_Breath_of_the_Wild.jpg",
+      "FIFA 24": "https://upload.wikimedia.org/wikipedia/en/a/a6/FIFA_24_Cover.jpg",
+      // Add more game images as needed
+    };
+    return gameImages[title] || "https://placehold.co/600x400/171717/6366f1/png?text=Game+Image";
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background/90 p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header Section */}
-        <div className="glass-card rounded-xl p-4 md:p-6 animate-fade-in">
+        <div className="bg-black/20 backdrop-blur-lg rounded-xl p-4 md:p-6 border border-white/10">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 md:gap-6">
             <div className="flex items-center gap-3 w-full md:w-auto">
               <div className="p-2 bg-primary/10 rounded-lg">
@@ -73,13 +84,13 @@ const Dashboard = () => {
                   placeholder="Search games..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-card/50 border-border/20"
+                  className="pl-10 bg-black/20 border-white/10"
                 />
               </div>
               <Button 
                 variant="outline" 
                 size="icon"
-                className="bg-card/50 border-border/20"
+                className="bg-black/20 border-white/10"
               >
                 <Filter className="h-4 w-4" />
               </Button>
@@ -94,7 +105,7 @@ const Dashboard = () => {
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate("/profile")}
-                className="bg-card/50"
+                className="bg-black/20"
               >
                 <User className="h-4 w-4" />
               </Button>
@@ -112,7 +123,7 @@ const Dashboard = () => {
               </div>
             </div>
           ) : error ? (
-            <div className="text-center py-20 glass-card animate-fade-in rounded-xl">
+            <div className="text-center py-20 bg-black/20 backdrop-blur-lg animate-fade-in rounded-xl border border-white/10">
               <Package className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
               <h2 className="text-xl font-semibold text-foreground">Error loading game codes</h2>
               <p className="text-muted-foreground mt-2">Please try again later</p>
@@ -129,13 +140,13 @@ const Dashboard = () => {
                     game={{
                       id: game.id,
                       title: game.title,
-                      price: game.price,
-                      seller: "Anonymous", // Simplified for now
+                      price: Number(game.price),
+                      seller: "Anonymous", // We'll update this later when we implement seller profiles
                       codesAvailable: 1,
-                      image: "https://placehold.co/600x400",
+                      image: getGameImage(game.title),
                       platform: game.platform,
-                      region: game.region || "Unknown",
-                      originalValue: game.original_value || 0,
+                      region: game.region || "Global",
+                      originalValue: game.original_value ? Number(game.original_value) : undefined,
                     }}
                   />
                 </div>
@@ -145,7 +156,7 @@ const Dashboard = () => {
 
           {/* Empty State */}
           {filteredCodes?.length === 0 && !isLoading && !error && (
-            <div className="text-center py-20 glass-card animate-fade-in rounded-xl">
+            <div className="text-center py-20 bg-black/20 backdrop-blur-lg animate-fade-in rounded-xl border border-white/10">
               <Package className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
               <h2 className="text-xl font-semibold text-foreground">No game codes found</h2>
               <p className="text-muted-foreground mt-2">Try adjusting your search criteria</p>
