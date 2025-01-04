@@ -21,37 +21,18 @@ const Dashboard = () => {
     queryFn: async () => {
       console.log('Fetching game codes...');
       
-      // First, get the game codes
-      const { data: codes, error: codesError } = await supabase
+      const { data, error } = await supabase
         .from('game_codes')
         .select('*')
         .eq('status', 'available');
       
-      if (codesError) {
-        console.error('Error fetching game codes:', codesError);
-        throw codesError;
+      if (error) {
+        console.error('Error fetching game codes:', error);
+        throw error;
       }
 
-      // Then, for each code, get the seller's username
-      const codesWithSellers = await Promise.all(
-        codes.map(async (code) => {
-          const { data: sellerData } = await supabase
-            .from('profiles')
-            .select('username')
-            .eq('id', code.seller_id)
-            .single();
-          
-          return {
-            ...code,
-            seller: {
-              username: sellerData?.username || 'Anonymous'
-            }
-          };
-        })
-      );
-
-      console.log('Game codes with sellers:', codesWithSellers);
-      return codesWithSellers;
+      console.log('Game codes fetched:', data);
+      return data;
     },
     meta: {
       errorMessage: "Failed to load game codes. Please try again.",
@@ -147,12 +128,12 @@ const Dashboard = () => {
                     id: game.id,
                     title: game.title,
                     price: game.price,
-                    seller: game.seller.username,
+                    seller: "Anonymous", // Simplified for now
                     codesAvailable: 1,
                     image: "https://placehold.co/600x400",
                     platform: game.platform,
-                    region: game.region,
-                    originalValue: game.original_value,
+                    region: game.region || "Unknown",
+                    originalValue: game.original_value || 0,
                   }}
                 />
               </div>
