@@ -26,7 +26,7 @@ const GameDetails = () => {
         .from('game_codes')
         .select(`
           *,
-          seller_profile:profiles!inner(*)
+          seller_profile:profiles(*)
         `)
         .eq('id', id)
         .single();
