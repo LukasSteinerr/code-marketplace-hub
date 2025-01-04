@@ -7,6 +7,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const cryptoProvider = Stripe.createSubtleCryptoProvider();
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -38,7 +40,7 @@ serve(async (req) => {
     }
 
     // Get the raw request body
-    const rawBody = await req.clone().text();
+    const rawBody = await req.text();
     console.log('Raw body length:', rawBody.length);
     
     if (!Deno.env.get('STRIPE_WEBHOOK_SECRET')) {
@@ -58,10 +60,12 @@ serve(async (req) => {
     // Verify the event
     let event;
     try {
-      event = stripe.webhooks.constructEvent(
+      event = await stripe.webhooks.constructEventAsync(
         rawBody,
         signature,
-        Deno.env.get('STRIPE_WEBHOOK_SECRET') || ''
+        Deno.env.get('STRIPE_WEBHOOK_SECRET') || '',
+        undefined,
+        cryptoProvider
       );
     } catch (err) {
       console.error('Webhook signature verification failed:', {
