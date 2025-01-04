@@ -1,1 +1,21 @@
 project_id = "laocnftisgmcjwylzgzz"
+
+[api]
+enabled = true
+url = "https://laocnftisgmcjwylzgzz.supabase.co"
+
+[db]
+enabled = true
+
+[realtime]
+enabled = true
+
+[functions]
+[functions.create-checkout]
+verify_jwt = true
+[functions.create-connect-account]
+verify_jwt = true
+[functions.stripe-webhook]
+verify_jwt = false
+[functions.checkout-webhook]
+verify_jwt = false
