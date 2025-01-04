@@ -107,17 +107,22 @@ serve(async (req) => {
         throw new Error(`Error updating game code: ${updateError.message}`);
       }
 
-      // Transfer payment to seller
+      // Attempt to transfer payment to seller
       if (gameData.sellers?.stripe_account_id) {
-        const transfer = await stripe.transfers.create({
-          amount: session.amount_total * 0.8, // 80% to seller, 20% platform fee
-          currency: session.currency,
-          destination: gameData.sellers.stripe_account_id,
-          transfer_group: `game_${gameId}`,
-          description: `Payment for game code ${gameId}`,
-        });
-
-        console.log('Transfer created:', transfer.id);
+        try {
+          const transfer = await stripe.transfers.create({
+            amount: session.amount_total * 0.8, // 80% to seller, 20% platform fee
+            currency: session.currency,
+            destination: gameData.sellers.stripe_account_id,
+            transfer_group: `game_${gameId}`,
+            description: `Payment for game code ${gameId}`,
+          });
+          console.log('Transfer created:', transfer.id);
+        } catch (transferError) {
+          // Log the transfer error but continue with the purchase process
+          console.error('Failed to transfer funds to seller:', transferError);
+          // You might want to store this failed transfer somewhere to retry later
+        }
       } else {
         console.warn('No Stripe account found for seller, skipping transfer');
       }
