@@ -21,21 +21,21 @@ const Dashboard = () => {
     queryFn: async () => {
       console.log('Fetching game codes...');
       
-      const { data: gameCodesData, error: gameCodesError } = await supabase
+      const { data, error } = await supabase
         .from('game_codes')
         .select(`
           *,
-          profile:profiles!game_codes_seller_id_fkey(*)
+          seller:profiles!game_codes_seller_id_fkey(username)
         `)
         .eq('status', 'available');
       
-      if (gameCodesError) {
-        console.error('Error fetching game codes:', gameCodesError);
-        throw gameCodesError;
+      if (error) {
+        console.error('Error fetching game codes:', error);
+        throw error;
       }
 
-      console.log('Game codes data:', gameCodesData);
-      return gameCodesData;
+      console.log('Game codes data:', data);
+      return data as (GameCode & { seller: { username: string | null } })[];
     },
     meta: {
       errorMessage: "Failed to load game codes. Please try again.",
@@ -131,7 +131,7 @@ const Dashboard = () => {
                     id: game.id,
                     title: game.title,
                     price: game.price,
-                    seller: game.profile?.username || "Anonymous",
+                    seller: game.seller.username || "Anonymous",
                     codesAvailable: 1,
                     image: "https://placehold.co/600x400",
                     platform: game.platform,
