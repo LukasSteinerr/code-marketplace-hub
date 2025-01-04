@@ -92,11 +92,11 @@ serve(async (req) => {
         throw new Error('Failed to find available game code');
       }
 
-      // Update game code status
+      // Update game code status to pending (in escrow)
       const { error: updateError } = await supabaseAdmin
         .from('game_codes')
         .update({ 
-          status: 'sold',
+          status: 'pending',
           updated_at: new Date().toISOString()
         })
         .eq('id', gameId)
@@ -107,24 +107,22 @@ serve(async (req) => {
         throw new Error(`Error updating game code: ${updateError.message}`);
       }
 
-      // Attempt to transfer payment to seller
-      if (gameData.sellers?.stripe_account_id) {
-        try {
-          const transfer = await stripe.transfers.create({
-            amount: session.amount_total * 0.8, // 80% to seller, 20% platform fee
-            currency: session.currency,
-            destination: gameData.sellers.stripe_account_id,
-            transfer_group: `game_${gameId}`,
-            description: `Payment for game code ${gameId}`,
-          });
-          console.log('Transfer created:', transfer.id);
-        } catch (transferError) {
-          // Log the transfer error but continue with the purchase process
-          console.error('Failed to transfer funds to seller:', transferError);
-          // You might want to store this failed transfer somewhere to retry later
-        }
-      } else {
-        console.warn('No Stripe account found for seller, skipping transfer');
+      // Store payment intent ID for later transfer
+      const { error: paymentError } = await supabaseAdmin
+        .from('payments')
+        .insert({
+          game_code_id: gameId,
+          payment_intent_id: session.payment_intent,
+          amount: session.amount_total,
+          buyer_email: customerEmail,
+          seller_id: gameData.seller_id,
+          stripe_account_id: gameData.sellers?.stripe_account_id,
+          status: 'pending'
+        });
+
+      if (paymentError) {
+        console.error('Error storing payment info:', paymentError);
+        throw new Error(`Error storing payment info: ${paymentError.message}`);
       }
 
       // Send email with game code to customer
@@ -144,7 +142,8 @@ serve(async (req) => {
             <div style="background-color: #f4f4f4; padding: 15px; margin: 20px 0; border-radius: 5px;">
               <code style="font-size: 18px; font-weight: bold;">${gameData.code_text}</code>
             </div>
-            <p>Please redeem this code on the appropriate platform.</p>
+            <p>Please redeem this code on the appropriate platform and confirm that it works.</p>
+            <p>Click here to confirm the code works: ${Deno.env.get('SUPABASE_URL')}/confirm-code/${gameId}</p>
             <p>If you have any issues, please contact our support team.</p>
           `,
         }),
