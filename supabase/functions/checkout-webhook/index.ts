@@ -66,7 +66,10 @@ serve(async (req) => {
       if (session.metadata?.gameId) {
         const { error: updateError } = await supabaseAdmin
           .from('game_codes')
-          .update({ status: 'sold' })
+          .update({ 
+            status: 'sold',
+            updated_at: new Date().toISOString()
+          })
           .eq('id', session.metadata.gameId);
 
         if (updateError) {
