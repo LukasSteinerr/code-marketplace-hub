@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -33,12 +34,52 @@ serve(async (req) => {
       throw new Error('Not authenticated');
     }
 
-    // Delete the user from auth.users (this will cascade to profiles due to FK)
+    console.log('Starting deletion process for user:', user.id);
+
+    // Delete seller record first (if exists)
+    const { error: sellerError } = await supabaseAdmin
+      .from('sellers')
+      .delete()
+      .eq('id', user.id);
+
+    if (sellerError) {
+      console.error('Error deleting seller record:', sellerError);
+      throw new Error('Failed to delete seller record');
+    }
+
+    // Delete game codes
+    const { error: gameCodesError } = await supabaseAdmin
+      .from('game_codes')
+      .delete()
+      .eq('seller_id', user.id);
+
+    if (gameCodesError) {
+      console.error('Error deleting game codes:', gameCodesError);
+      throw new Error('Failed to delete game codes');
+    }
+
+    // Delete profile
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .delete()
+      .eq('id', user.id);
+
+    if (profileError) {
+      console.error('Error deleting profile:', profileError);
+      throw new Error('Failed to delete profile');
+    }
+
+    // Finally, delete the user from auth.users
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(
       user.id
     );
 
-    if (deleteError) throw deleteError;
+    if (deleteError) {
+      console.error('Error deleting auth user:', deleteError);
+      throw deleteError;
+    }
+
+    console.log('Successfully deleted user and all associated data');
 
     return new Response(
       JSON.stringify({ success: true }),
@@ -48,9 +89,11 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Delete user error:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message || 'Failed to delete user account'
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
