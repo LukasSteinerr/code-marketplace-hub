@@ -48,7 +48,7 @@ const Login = () => {
           variant: "default",
         });
       } else if (event === 'USER_UPDATED') {
-        console.log('User profile updated');
+        console.log('Profile updated');
         toast({
           title: "Profile Updated",
           description: "Your profile has been updated",
@@ -113,7 +113,6 @@ const Login = () => {
             }}
             providers={["google"]}
             redirectTo={`${window.location.origin}/dashboard`}
-            onlyThirdPartyProviders
           />
         </div>
       </div>
