@@ -7,8 +7,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const cryptoProvider = Stripe.createSubtleCryptoProvider();
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -38,10 +36,10 @@ serve(async (req) => {
       );
     }
 
-    // Get the raw request body
-    const rawBody = await req.text();
-    console.log('Raw body length:', rawBody.length);
-    console.log('Webhook secret present:', !!Deno.env.get('STRIPE_WEBHOOK_SECRET'));
+    // Get the raw request body as an ArrayBuffer
+    const rawBody = await req.arrayBuffer();
+    const rawBodyText = new TextDecoder().decode(rawBody);
+    console.log('Raw body length:', rawBodyText.length);
     
     if (!Deno.env.get('STRIPE_WEBHOOK_SECRET')) {
       console.error('STRIPE_WEBHOOK_SECRET is not set');
@@ -57,15 +55,13 @@ serve(async (req) => {
       );
     }
 
-    // Verify the event using the async version
+    // Verify the event using the synchronous version
     let event;
     try {
-      event = await stripe.webhooks.constructEventAsync(
-        rawBody,
+      event = stripe.webhooks.constructEvent(
+        rawBodyText,
         signature,
-        Deno.env.get('STRIPE_WEBHOOK_SECRET') || '',
-        undefined,
-        cryptoProvider
+        Deno.env.get('STRIPE_WEBHOOK_SECRET') || ''
       );
     } catch (err) {
       console.error('Webhook signature verification failed:', {
