@@ -15,6 +15,11 @@ const Login = () => {
       const { error } = await supabase.auth.signOut({ scope: 'local' });
       if (error) {
         console.error('Error clearing session:', error);
+        toast({
+          title: "Session Error",
+          description: error.message,
+          variant: "destructive",
+        });
       }
     };
     
@@ -32,6 +37,18 @@ const Login = () => {
         // Clear local storage and session storage
         localStorage.clear();
         sessionStorage.clear();
+      } else if (event === 'USER_DELETED') {
+        toast({
+          title: "Account Deleted",
+          description: "Your account has been successfully deleted",
+          variant: "default",
+        });
+      } else if (event === 'AUTH_ERROR') {
+        toast({
+          title: "Authentication Error",
+          description: "There was an error during authentication",
+          variant: "destructive",
+        });
       }
     });
 
@@ -39,7 +56,7 @@ const Login = () => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [navigate]);
+  }, [navigate, toast]);
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-background">
@@ -65,14 +82,6 @@ const Login = () => {
             }}
             providers={["google"]}
             redirectTo={window.location.origin}
-            onError={(error) => {
-              console.error('Auth error:', error);
-              toast({
-                title: "Authentication Error",
-                description: error.message,
-                variant: "destructive",
-              });
-            }}
           />
         </div>
       </div>
