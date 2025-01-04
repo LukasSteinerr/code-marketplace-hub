@@ -11,6 +11,7 @@ const corsHeaders = {
 const cryptoProvider = Stripe.createSubtleCryptoProvider();
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -39,10 +40,10 @@ serve(async (req) => {
       );
     }
 
-    // Get the raw request body as an ArrayBuffer and convert to text
-    const rawBody = await req.arrayBuffer();
-    const rawBodyText = new TextDecoder().decode(rawBody);
-    console.log('Raw body length:', rawBodyText.length);
+    // Get the raw request body
+    const rawBody = await req.text();
+    console.log('Raw body length:', rawBody.length);
+    console.log('Raw body:', rawBody);
     
     if (!Deno.env.get('STRIPE_WEBHOOK_SECRET')) {
       console.error('STRIPE_WEBHOOK_SECRET is not set');
@@ -62,7 +63,7 @@ serve(async (req) => {
     let event;
     try {
       event = await stripe.webhooks.constructEventAsync(
-        rawBodyText,
+        rawBody,
         signature,
         Deno.env.get('STRIPE_WEBHOOK_SECRET') || '',
         undefined,
