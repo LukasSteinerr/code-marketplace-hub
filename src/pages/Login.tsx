@@ -66,7 +66,6 @@ const Login = () => {
       
       if (error) {
         console.error('Error signing in with Google:', error);
-        // Check if the error is due to user already existing
         if (error.message.includes('user_already_exists')) {
           toast({
             title: "Account Exists",
@@ -144,8 +143,20 @@ const Login = () => {
                   colors: {
                     brand: 'rgb(var(--primary))',
                     brandAccent: 'rgb(var(--primary))',
+                    inputBackground: 'rgb(var(--background))',
+                    inputText: 'rgb(var(--foreground))',
+                    inputBorder: 'rgb(var(--border))',
+                    inputBorderFocus: 'rgb(var(--ring))',
+                    inputBorderHover: 'rgb(var(--border))',
+                    inputPlaceholder: 'rgb(var(--muted-foreground))',
                   },
                 },
+              },
+              className: {
+                container: 'space-y-4',
+                label: 'text-foreground',
+                button: 'bg-primary text-primary-foreground hover:bg-primary/90',
+                input: 'bg-background text-foreground border-input',
               },
             }}
             providers={[]}
@@ -157,8 +168,16 @@ const Login = () => {
                   button_label: 'Sign up',
                   loading_button_label: 'Signing up...',
                   social_provider_text: 'Sign in with {{provider}}',
-                  link_text: 'Don\'t have an account? Sign up',
+                  link_text: "Don't have an account? Sign up",
                   confirmation_text: 'Check your email for the confirmation link',
+                },
+                sign_in: {
+                  email_label: 'Email',
+                  password_label: 'Password',
+                  button_label: 'Sign in',
+                  loading_button_label: 'Signing in...',
+                  social_provider_text: 'Sign in with {{provider}}',
+                  link_text: 'Already have an account? Sign in',
                 },
               },
             }}
