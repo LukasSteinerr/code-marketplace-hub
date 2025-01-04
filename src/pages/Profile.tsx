@@ -7,6 +7,7 @@ import { LogOut, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ProfileNav } from "@/components/profile/ProfileNav";
 import { SellerStatus } from "@/components/profile/SellerStatus";
+import { DeleteAccount } from "@/components/profile/DeleteAccount";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -133,6 +134,8 @@ const Profile = () => {
                 Sign Out
               </Button>
             </div>
+
+            <DeleteAccount />
           </CardContent>
         </Card>
       </div>
