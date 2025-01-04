@@ -37,7 +37,7 @@ serve(async (req) => {
       throw new Error('No Stripe account found');
     }
 
-    const stripe = new Stripe(Deno.env.get('STRIPE_PUBLIC_KEY') || '', {
+    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', { // Changed from STRIPE_PUBLIC_KEY to STRIPE_SECRET_KEY
       apiVersion: '2023-10-16',
     });
 
