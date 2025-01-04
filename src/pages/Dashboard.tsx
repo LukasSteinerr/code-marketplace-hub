@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Database } from "@/integrations/supabase/types";
 
 type GameCodeWithProfile = Database['public']['Tables']['game_codes']['Row'] & {
-  profiles: {
+  seller_profile: {
     username: string | null;
     avatar_url: string | null;
   } | null;
@@ -29,10 +29,7 @@ const Dashboard = () => {
         .from('game_codes')
         .select(`
           *,
-          profiles:seller_id (
-            username,
-            avatar_url
-          )
+          seller_profile:profiles!game_codes_seller_id_fkey(username, avatar_url)
         `)
         .eq('status', 'available');
       
@@ -138,7 +135,7 @@ const Dashboard = () => {
                     id: game.id,
                     title: game.title,
                     price: game.price,
-                    seller: game.profiles?.username || "Anonymous",
+                    seller: game.seller_profile?.username || "Anonymous",
                     codesAvailable: 1,
                     image: "https://placehold.co/600x400",
                     platform: game.platform,
