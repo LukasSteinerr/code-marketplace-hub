@@ -7,9 +7,12 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Database } from "@/integrations/supabase/types";
 
-type GameWithProfile = Database['public']['Tables']['game_codes']['Row'] & {
-  profiles: Database['public']['Tables']['profiles']['Row'] | null;
-};
+type GameCode = Database['public']['Tables']['game_codes']['Row'];
+type Profile = Database['public']['Tables']['profiles']['Row'];
+
+interface GameWithProfile extends GameCode {
+  profiles: Profile | null;
+}
 
 const GameDetails = () => {
   const { id } = useParams();
@@ -23,16 +26,13 @@ const GameDetails = () => {
         .from('game_codes')
         .select(`
           *,
-          profiles!game_codes_seller_id_fkey(
-            username,
-            avatar_url
-          )
+          profiles!game_codes_seller_id_fkey(*)
         `)
         .eq('id', id)
         .single();
 
       if (error) throw error;
-      return gameData;
+      return gameData as GameWithProfile;
     }
   });
 
