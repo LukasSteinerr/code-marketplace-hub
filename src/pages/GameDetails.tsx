@@ -5,13 +5,18 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { Database } from "@/integrations/supabase/types";
+
+type GameWithProfile = Database['public']['Tables']['game_codes']['Row'] & {
+  profiles: Database['public']['Tables']['profiles']['Row'] | null;
+};
 
 const GameDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const { data: game, isLoading } = useQuery({
+  const { data: game, isLoading } = useQuery<GameWithProfile>({
     queryKey: ['game', id],
     queryFn: async () => {
       const { data: gameData, error } = await supabase
