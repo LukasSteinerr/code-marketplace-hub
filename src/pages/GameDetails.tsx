@@ -27,7 +27,7 @@ const GameDetails = () => {
         .from('game_codes')
         .select(`
           *,
-          seller_profile:profiles(*)
+          seller_profile:profiles!game_codes_seller_profile_fkey(*)
         `)
         .eq('id', id)
         .single();
@@ -35,12 +35,35 @@ const GameDetails = () => {
       if (error) throw error;
       if (!gameData) throw new Error('Game not found');
       
-      return {
-        ...gameData,
-        seller_profile: gameData.seller_profile as Profile
-      };
+      return gameData as GameWithProfile;
     }
   });
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 w-32 bg-muted rounded"></div>
+            <div className="h-64 bg-muted rounded"></div>
+            <div className="h-8 w-64 bg-muted rounded"></div>
+            <div className="h-24 bg-muted rounded"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!game) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <h1 className="text-2xl font-bold mb-4">Game not found</h1>
+          <GameHeader />
+        </div>
+      </div>
+    );
+  }
 
   const handleBuyNow = async () => {
     try {
@@ -73,32 +96,6 @@ const GameDetails = () => {
       });
     }
   };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 w-32 bg-muted rounded"></div>
-            <div className="h-64 bg-muted rounded"></div>
-            <div className="h-8 w-64 bg-muted rounded"></div>
-            <div className="h-24 bg-muted rounded"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!game) {
-    return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-2xl font-bold mb-4">Game not found</h1>
-          <GameHeader />
-        </div>
-      </div>
-    );
-  }
 
   const discount = game.original_value 
     ? Math.round(((game.original_value - game.price) / game.original_value) * 100)
