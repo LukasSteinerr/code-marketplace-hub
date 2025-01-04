@@ -79,7 +79,6 @@ serve(async (req) => {
           )
         `)
         .eq('id', gameId)
-        .eq('status', 'available')
         .single();
 
       if (gameError) {
@@ -88,8 +87,8 @@ serve(async (req) => {
       }
 
       if (!gameData) {
-        console.error('No game code found or already sold');
-        throw new Error('Failed to find available game code');
+        console.error('No game code found');
+        throw new Error('Failed to find game code');
       }
 
       // Update game code status
@@ -99,7 +98,8 @@ serve(async (req) => {
           status: 'sold',
           updated_at: new Date().toISOString()
         })
-        .eq('id', gameId);
+        .eq('id', gameId)
+        .eq('status', 'available');
 
       if (updateError) {
         console.error('Error updating game code:', updateError);
