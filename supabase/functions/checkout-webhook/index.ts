@@ -25,13 +25,37 @@ serve(async (req) => {
     console.log('Received webhook with signature:', signature);
     
     if (!signature) {
-      throw new Error('No Stripe signature found');
+      console.error('No Stripe signature found in headers');
+      return new Response(
+        JSON.stringify({ 
+          error: 'No Stripe signature found', 
+          details: 'The webhook request is missing the stripe-signature header'
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        }
+      );
     }
 
     // Get the raw request body
     const rawBody = await req.text();
     console.log('Raw body length:', rawBody.length);
-    console.log('Webhook secret length:', Deno.env.get('STRIPE_WEBHOOK_SECRET')?.length);
+    console.log('Webhook secret present:', !!Deno.env.get('STRIPE_WEBHOOK_SECRET'));
+    
+    if (!Deno.env.get('STRIPE_WEBHOOK_SECRET')) {
+      console.error('STRIPE_WEBHOOK_SECRET is not set');
+      return new Response(
+        JSON.stringify({ 
+          error: 'Configuration error', 
+          details: 'STRIPE_WEBHOOK_SECRET is not configured'
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        }
+      );
+    }
 
     // Verify the event using the async version
     let event;
@@ -44,9 +68,17 @@ serve(async (req) => {
         cryptoProvider
       );
     } catch (err) {
-      console.error('Webhook signature verification failed:', err);
+      console.error('Webhook signature verification failed:', {
+        error: err.message,
+        type: err.type,
+        stack: err.stack
+      });
       return new Response(
-        JSON.stringify({ error: 'Webhook signature verification failed', details: err.message }),
+        JSON.stringify({ 
+          error: 'Webhook signature verification failed', 
+          details: err.message,
+          type: err.type
+        }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
@@ -66,21 +98,57 @@ serve(async (req) => {
       const session = event.data.object;
       console.log('Processing successful checkout session:', session.id);
 
-      // Update game code status to 'sold'
-      if (session.metadata?.gameId) {
+      if (!session.metadata?.gameId) {
+        console.error('No gameId found in session metadata');
+        return new Response(
+          JSON.stringify({ 
+            error: 'Invalid session data', 
+            details: 'No gameId found in session metadata'
+          }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400,
+          }
+        );
+      }
+
+      try {
+        // Update game code status to 'sold'
         const { error: updateError } = await supabaseAdmin
           .from('game_codes')
           .update({ 
             status: 'sold',
             updated_at: new Date().toISOString()
           })
-          .eq('id', session.metadata.gameId);
+          .eq('id', session.metadata.gameId)
+          .eq('status', 'available'); // Only update if it's still available
 
         if (updateError) {
-          console.error('Error updating game code status:', updateError);
+          console.error('Error updating game code status:', {
+            error: updateError.message,
+            details: updateError.details,
+            hint: updateError.hint
+          });
           throw updateError;
         }
+        
         console.log('Successfully marked game code as sold:', session.metadata.gameId);
+      } catch (error) {
+        console.error('Database operation failed:', {
+          error: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        return new Response(
+          JSON.stringify({ 
+            error: 'Database operation failed', 
+            details: error.message
+          }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500,
+          }
+        );
       }
     }
 
@@ -89,9 +157,17 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error) {
-    console.error('Webhook error:', error);
+    console.error('Webhook processing failed:', {
+      error: error.message,
+      stack: error.stack,
+      type: error.type
+    });
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: 'Webhook processing failed', 
+        details: error.message,
+        type: error.type
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
