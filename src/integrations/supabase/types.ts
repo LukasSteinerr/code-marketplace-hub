@@ -60,6 +60,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "game_codes_seller_id_sellers_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "sellers"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "game_codes_seller_profile_fkey"
             columns: ["seller_id"]
             isOneToOne: false

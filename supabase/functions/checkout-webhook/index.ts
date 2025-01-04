@@ -74,11 +74,12 @@ serve(async (req) => {
           code_text,
           title,
           seller_id,
-          sellers!inner (
+          sellers (
             stripe_account_id
           )
         `)
         .eq('id', gameId)
+        .eq('status', 'available')
         .single();
 
       if (gameError) {
@@ -87,8 +88,8 @@ serve(async (req) => {
       }
 
       if (!gameData) {
-        console.error('No game code found');
-        throw new Error('Failed to find game code');
+        console.error('No game code found or code already sold');
+        throw new Error('Failed to find available game code');
       }
 
       // Update game code status
@@ -107,17 +108,21 @@ serve(async (req) => {
       }
 
       // Transfer payment to seller
-      const transfer = await stripe.transfers.create({
-        amount: session.amount_total * 0.8, // 80% to seller, 20% platform fee
-        currency: session.currency,
-        destination: gameData.sellers.stripe_account_id,
-        transfer_group: `game_${gameId}`,
-        description: `Payment for game code ${gameId}`,
-      });
+      if (gameData.sellers?.stripe_account_id) {
+        const transfer = await stripe.transfers.create({
+          amount: session.amount_total * 0.8, // 80% to seller, 20% platform fee
+          currency: session.currency,
+          destination: gameData.sellers.stripe_account_id,
+          transfer_group: `game_${gameId}`,
+          description: `Payment for game code ${gameId}`,
+        });
 
-      console.log('Transfer created:', transfer.id);
+        console.log('Transfer created:', transfer.id);
+      } else {
+        console.warn('No Stripe account found for seller, skipping transfer');
+      }
 
-      // Send email with game code to customer using Resend's default domain
+      // Send email with game code to customer
       const emailResponse = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -125,7 +130,7 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: 'Acme <onboarding@resend.dev>', // Using Resend's default sending domain
+          from: 'Acme <onboarding@resend.dev>',
           to: customerEmail,
           subject: `Your Game Code for ${gameData.title}`,
           html: `
