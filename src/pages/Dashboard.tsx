@@ -6,27 +6,45 @@ import { Button } from "@/components/ui/button";
 import GameCard from "@/components/GameCard";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const { toast } = useToast();
 
-  const { data: gameCodes, isLoading } = useQuery({
+  const { data: gameCodes, isLoading, error } = useQuery({
     queryKey: ['game-codes'],
     queryFn: async () => {
+      console.log('Fetching game codes...');
       const { data, error } = await supabase
         .from('game_codes')
         .select('*')
         .eq('status', 'available');
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching game codes:', error);
+        throw error;
+      }
+      
+      console.log('Fetched game codes:', data);
       return data;
+    },
+    onError: (error) => {
+      console.error('Query error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load game codes. Please try again.",
+        variant: "destructive",
+      });
     }
   });
 
   const filteredCodes = gameCodes?.filter(code => 
     code.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  console.log('Filtered codes:', filteredCodes);
 
   return (
     <div className="min-h-screen gradient-bg p-6">
@@ -84,6 +102,11 @@ const Dashboard = () => {
               />
             ))}
           </div>
+        ) : error ? (
+          <div className="text-center py-20 glass-card animate-fade-in">
+            <h2 className="text-2xl font-semibold text-foreground">Error loading game codes</h2>
+            <p className="text-muted-foreground mt-2">Please try again later</p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredCodes?.map((game, index) => (
@@ -108,7 +131,7 @@ const Dashboard = () => {
         )}
 
         {/* Empty State */}
-        {filteredCodes?.length === 0 && (
+        {filteredCodes?.length === 0 && !isLoading && !error && (
           <div className="text-center py-20 glass-card animate-fade-in">
             <h2 className="text-2xl font-semibold text-foreground">No game codes found</h2>
             <p className="text-muted-foreground mt-2">Try adjusting your search criteria</p>
