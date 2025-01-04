@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Filter, Plus, User, Package, Loader2 } from "lucide-react";
+import { Search, Filter, Plus, User, Package, Loader2, Tag } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import GameCard from "@/components/GameCard";
@@ -8,12 +8,37 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Database } from "@/integrations/supabase/types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type GameCode = Database['public']['Tables']['game_codes']['Row'];
+
+const CATEGORIES = [
+  'All',
+  'Action',
+  'Adventure',
+  'RPG',
+  'Sports',
+  'Strategy',
+  'Racing',
+  'Simulation',
+  'Fighting',
+  'Horror',
+  'Platformer',
+  'Shooter',
+  'Puzzle',
+  'Family'
+] as const;
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const { toast } = useToast();
 
   const { data: gameCodes, isLoading, error } = useQuery({
@@ -36,11 +61,13 @@ const Dashboard = () => {
     }
   });
 
-  const filteredCodes = gameCodes?.filter(code => 
-    code.title.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
+  const filteredCodes = gameCodes?.filter(code => {
+    const matchesSearch = code.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === 'All' || code.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  }) || [];
 
-  console.log('Filtered codes:', filteredCodes); // Debug log
+  console.log('Filtered codes:', filteredCodes);
 
   const getGameImage = (title: string) => {
     const gameImages: Record<string, string> = {
@@ -76,13 +103,22 @@ const Dashboard = () => {
                   className="pl-10 bg-card/10 border-border/10"
                 />
               </div>
-              <Button 
-                variant="outline" 
-                size="icon"
-                className="bg-card/10 border-border/10"
+              <Select
+                value={selectedCategory}
+                onValueChange={setSelectedCategory}
               >
-                <Filter className="h-4 w-4" />
-              </Button>
+                <SelectTrigger className="w-[180px] bg-card/10 border-border/10">
+                  <Tag className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Button 
                 onClick={() => navigate("/list-code")} 
                 className="bg-primary hover:bg-primary/90"

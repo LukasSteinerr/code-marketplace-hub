@@ -11,6 +11,7 @@ export type Database = {
     Tables: {
       game_codes: {
         Row: {
+          category: Database["public"]["Enums"]["game_category"]
           code_text: string
           created_at: string
           description: string | null
@@ -26,6 +27,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          category?: Database["public"]["Enums"]["game_category"]
           code_text: string
           created_at?: string
           description?: string | null
@@ -41,6 +43,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          category?: Database["public"]["Enums"]["game_category"]
           code_text?: string
           created_at?: string
           description?: string | null
@@ -111,6 +114,20 @@ export type Database = {
     }
     Enums: {
       code_status: "available" | "sold" | "pending"
+      game_category:
+        | "Action"
+        | "Adventure"
+        | "RPG"
+        | "Sports"
+        | "Strategy"
+        | "Racing"
+        | "Simulation"
+        | "Fighting"
+        | "Horror"
+        | "Platformer"
+        | "Shooter"
+        | "Puzzle"
+        | "Family"
       game_title:
         | "Call of Duty: Modern Warfare"
         | "Red Dead Redemption 2"
