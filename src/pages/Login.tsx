@@ -66,11 +66,20 @@ const Login = () => {
       
       if (error) {
         console.error('Error signing in with Google:', error);
-        toast({
-          title: "Sign In Error",
-          description: error.message,
-          variant: "destructive",
-        });
+        // Check if the error is due to user already existing
+        if (error.message.includes('user_already_exists')) {
+          toast({
+            title: "Account Exists",
+            description: "An account with this email already exists. Please sign in instead.",
+            variant: "default",
+          });
+        } else {
+          toast({
+            title: "Sign In Error",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
       }
     } catch (err) {
       console.error('Error during Google sign in:', err);
@@ -140,6 +149,16 @@ const Login = () => {
               },
             }}
             providers={[]}
+            onError={(error) => {
+              console.error('Auth error:', error);
+              if (error.message.includes('user_already_exists')) {
+                toast({
+                  title: "Account Exists",
+                  description: "An account with this email already exists. Please sign in instead.",
+                  variant: "default",
+                });
+              }
+            }}
           />
         </div>
       </div>
