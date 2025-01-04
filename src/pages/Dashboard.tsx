@@ -21,21 +21,37 @@ const Dashboard = () => {
     queryFn: async () => {
       console.log('Fetching game codes...');
       
-      const { data, error } = await supabase
+      // First, get the game codes
+      const { data: codes, error: codesError } = await supabase
         .from('game_codes')
-        .select(`
-          *,
-          seller:profiles!game_codes_seller_id_fkey(username)
-        `)
+        .select('*')
         .eq('status', 'available');
       
-      if (error) {
-        console.error('Error fetching game codes:', error);
-        throw error;
+      if (codesError) {
+        console.error('Error fetching game codes:', codesError);
+        throw codesError;
       }
 
-      console.log('Game codes data:', data);
-      return data as (GameCode & { seller: { username: string | null } })[];
+      // Then, for each code, get the seller's username
+      const codesWithSellers = await Promise.all(
+        codes.map(async (code) => {
+          const { data: sellerData } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', code.seller_id)
+            .single();
+          
+          return {
+            ...code,
+            seller: {
+              username: sellerData?.username || 'Anonymous'
+            }
+          };
+        })
+      );
+
+      console.log('Game codes with sellers:', codesWithSellers);
+      return codesWithSellers;
     },
     meta: {
       errorMessage: "Failed to load game codes. Please try again.",
@@ -131,7 +147,7 @@ const Dashboard = () => {
                     id: game.id,
                     title: game.title,
                     price: game.price,
-                    seller: game.seller.username || "Anonymous",
+                    seller: game.seller.username,
                     codesAvailable: 1,
                     image: "https://placehold.co/600x400",
                     platform: game.platform,
