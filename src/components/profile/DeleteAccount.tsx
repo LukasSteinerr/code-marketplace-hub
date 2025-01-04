@@ -28,15 +28,20 @@ export const DeleteAccount = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No active session');
 
-      // Delete profile data (this will cascade to sellers and game_codes due to FK constraints)
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', session.user.id);
+      // Call the delete-user Edge Function
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
 
-      if (profileError) throw profileError;
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to delete account');
+      }
 
-      // Sign out
+      // Sign out locally
       await supabase.auth.signOut();
       navigate('/login');
 
