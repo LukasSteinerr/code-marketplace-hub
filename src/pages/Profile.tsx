@@ -6,7 +6,7 @@ import { SellerStatus } from "@/components/profile/SellerStatus";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -15,24 +15,59 @@ const Profile = () => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('Session error:', sessionError);
+          throw sessionError;
+        }
+
+        if (!session) {
+          navigate("/login");
+          return;
+        }
+
+        // Set up auth state change listener
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+          if (!session) {
+            navigate("/login");
+          }
+        });
+
+        // Fetch seller status
+        const { data: sellerData, error: sellerError } = await supabase
+          .from('sellers')
+          .select('status')
+          .eq('id', session.user.id)
+          .maybeSingle();
+
+        if (sellerError) {
+          console.error('Seller status error:', sellerError);
+          throw sellerError;
+        }
+
+        setSellerStatus(sellerData?.status || null);
+
+        // Cleanup subscription on unmount
+        return () => {
+          subscription.unsubscribe();
+        };
+      } catch (error: any) {
+        console.error('Profile auth error:', error);
+        // Handle invalid/expired session
+        await supabase.auth.signOut();
+        toast({
+          title: "Session expired",
+          description: "Please sign in again.",
+          variant: "destructive",
+        });
         navigate("/login");
-        return;
       }
-
-      // Fetch seller status
-      const { data: sellerData } = await supabase
-        .from('sellers')
-        .select('status')
-        .eq('id', session.user.id)
-        .maybeSingle();
-
-      setSellerStatus(sellerData?.status || null);
     };
     
     checkAuth();
-  }, [navigate]);
+  }, [navigate, toast]);
 
   const handleLogout = async () => {
     try {
@@ -58,13 +93,16 @@ const Profile = () => {
         description: "You have been logged out of your account.",
       });
       navigate("/login");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Logout error:", error);
+      // Force local signout in case of errors
+      await supabase.auth.signOut({ scope: 'local' });
       toast({
         title: "Error during logout",
         description: "Please try again or refresh the page.",
         variant: "destructive",
       });
+      navigate("/login");
     }
   };
 

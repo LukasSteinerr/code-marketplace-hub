@@ -25,8 +25,16 @@ export const DeleteAccount = () => {
     try {
       setIsDeleting(true);
       
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('No active session');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        throw new Error('Session expired. Please login again.');
+      }
+
+      if (!session) {
+        throw new Error('No active session');
+      }
 
       // Call the delete-user Edge Function using supabase.functions.invoke
       const { error } = await supabase.functions.invoke('delete-user', {
@@ -47,6 +55,13 @@ export const DeleteAccount = () => {
       });
     } catch (error: any) {
       console.error('Delete account error:', error);
+      
+      // Handle session errors by redirecting to login
+      if (error.message.includes('Session expired') || error.message.includes('No active session')) {
+        await supabase.auth.signOut();
+        navigate('/login');
+      }
+      
       toast({
         variant: "destructive",
         title: "Error deleting account",
