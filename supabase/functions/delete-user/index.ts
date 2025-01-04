@@ -28,9 +28,12 @@ serve(async (req) => {
     // Get the user's session
     const authHeader = req.headers.get('Authorization')!;
     const token = authHeader.replace('Bearer ', '');
+    
+    // Verify the user exists and get their ID
     const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
-
+    
     if (userError || !user) {
+      console.error('Authentication error:', userError);
       throw new Error('Not authenticated');
     }
 
@@ -44,7 +47,6 @@ serve(async (req) => {
 
     if (sellerError) {
       console.error('Error deleting seller record:', sellerError);
-      throw new Error('Failed to delete seller record');
     }
 
     // Delete game codes
@@ -55,7 +57,6 @@ serve(async (req) => {
 
     if (gameCodesError) {
       console.error('Error deleting game codes:', gameCodesError);
-      throw new Error('Failed to delete game codes');
     }
 
     // Delete profile
@@ -66,7 +67,6 @@ serve(async (req) => {
 
     if (profileError) {
       console.error('Error deleting profile:', profileError);
-      throw new Error('Failed to delete profile');
     }
 
     // Finally, delete the user from auth.users

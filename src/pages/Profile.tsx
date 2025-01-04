@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ProfileNav } from "@/components/profile/ProfileNav";
 import { DeleteAccount } from "@/components/profile/DeleteAccount";
 import { SellerStatus } from "@/components/profile/SellerStatus";
@@ -11,13 +11,24 @@ import { useToast } from "@/components/ui/use-toast";
 const Profile = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [sellerStatus, setSellerStatus] = useState<string | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         navigate("/login");
+        return;
       }
+
+      // Fetch seller status
+      const { data: sellerData } = await supabase
+        .from('sellers')
+        .select('status')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      setSellerStatus(sellerData?.status || null);
     };
     
     checkAuth();
@@ -75,7 +86,7 @@ const Profile = () => {
         </div>
 
         <div className="grid gap-6">
-          <SellerStatus />
+          <SellerStatus status={sellerStatus} />
           <DeleteAccount />
         </div>
       </div>
