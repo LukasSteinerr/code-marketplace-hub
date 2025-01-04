@@ -13,31 +13,35 @@ serve(async (req) => {
   }
 
   try {
-    const STRIPE_CHECKOUT_WEBHOOK_SECRET = Deno.env.get('STRIPE_CHECKOUT_WEBHOOK_SECRET');
-    if (!STRIPE_CHECKOUT_WEBHOOK_SECRET) {
-      throw new Error('STRIPE_CHECKOUT_WEBHOOK_SECRET is not set');
+    // Get the stripe signature from the request headers
+    const signature = req.headers.get('stripe-signature');
+
+    if (!signature) {
+      throw new Error('No stripe signature found');
     }
 
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+    // Get the raw body as text
+    const body = await req.text();
+
+    // Initialize Stripe
+    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
       apiVersion: '2023-10-16',
-      httpClient: Stripe.createFetchHttpClient(),
     });
 
-    // Clone the request to read it multiple times
-    const clonedReq = req.clone();
-    const signature = req.headers.get('stripe-signature');
-    const body = await clonedReq.text();
+    // Verify the webhook signature
+    const webhookSecret = Deno.env.get('STRIPE_CHECKOUT_WEBHOOK_SECRET');
+    if (!webhookSecret) {
+      throw new Error('Webhook secret not found');
+    }
 
-    console.log('Raw body:', body);
-    console.log('Signature:', signature);
-
-    const event = await stripe.webhooks.constructEventAsync(
+    // Construct the event
+    const event = stripe.webhooks.constructEvent(
       body,
-      signature!,
-      STRIPE_CHECKOUT_WEBHOOK_SECRET,
+      signature,
+      webhookSecret
     );
 
-    console.log('Event type:', event.type);
+    console.log('Processing webhook event:', event.type);
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
@@ -49,13 +53,20 @@ serve(async (req) => {
 
       console.log('Processing completed checkout for game:', gameId);
 
-      const supabaseClient = createClient(
+      // Initialize Supabase client with service role key
+      const supabaseAdmin = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '', // Using service role key for admin access
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+          }
+        }
       );
 
       // Update the game code status to sold
-      const { error: updateError } = await supabaseClient
+      const { error: updateError } = await supabaseAdmin
         .from('game_codes')
         .update({ status: 'sold' })
         .eq('id', gameId);
@@ -73,7 +84,7 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Webhook error:', error.message);
     return new Response(
       JSON.stringify({ error: error.message }),
       {
