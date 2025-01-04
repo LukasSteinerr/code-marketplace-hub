@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import ListCode from "./pages/ListCode";
 import Profile from "./pages/Profile";
 import GameDetails from "./pages/GameDetails";
+import VerifyCode from "./pages/VerifyCode";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/list-code" element={<ListCode />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/game/:id" element={<GameDetails />} />
+          <Route path="/verify-code/:id" element={<VerifyCode />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
