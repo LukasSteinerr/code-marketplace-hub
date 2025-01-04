@@ -11,7 +11,7 @@ type GameCode = Database['public']['Tables']['game_codes']['Row'];
 type Profile = Database['public']['Tables']['profiles']['Row'];
 
 interface GameWithProfile extends GameCode {
-  profiles: Profile | null;
+  seller_profile: Profile | null;
 }
 
 const GameDetails = () => {
@@ -26,7 +26,7 @@ const GameDetails = () => {
         .from('game_codes')
         .select(`
           *,
-          profiles!game_codes_seller_id_fkey(*)
+          seller_profile:profiles!inner(*)
         `)
         .eq('id', id)
         .single();
@@ -39,7 +39,7 @@ const GameDetails = () => {
       // Transform the data to ensure it matches our type
       const transformedData: GameWithProfile = {
         ...gameData,
-        profiles: gameData.profiles as Profile | null
+        seller_profile: gameData.seller_profile as Profile
       };
 
       return transformedData;
@@ -179,7 +179,7 @@ const GameDetails = () => {
                 
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <User className="w-4 h-4" />
-                  <span>Seller: {game.profiles?.username || 'Anonymous'}</span>
+                  <span>Seller: {game.seller_profile?.username || 'Anonymous'}</span>
                 </div>
 
                 {game.expiration_date && (
