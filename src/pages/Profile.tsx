@@ -31,17 +31,32 @@ const Profile = () => {
 
       setUserEmail(session.user.email || "");
 
-      const { data, error } = await supabase
+      // Try to get existing profile
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('username')
         .eq('id', session.user.id)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
+      if (profileError) throw profileError;
       
-      if (data) setUsername(data.username);
+      if (!profile) {
+        // Create profile if it doesn't exist
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert([{ id: session.user.id }]);
+
+        if (insertError) throw insertError;
+      } else {
+        setUsername(profile.username);
+      }
     } catch (error: any) {
       console.error('Error loading user data!', error.message);
+      toast({
+        variant: "destructive",
+        title: "Error loading profile",
+        description: error.message
+      });
     } finally {
       setLoading(false);
     }
