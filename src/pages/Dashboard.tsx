@@ -9,12 +9,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Database } from "@/integrations/supabase/types";
 
-type GameCodeWithProfile = Database['public']['Tables']['game_codes']['Row'] & {
-  seller_profile: {
-    username: string | null;
-    avatar_url: string | null;
-  } | null;
-};
+type GameCode = Database['public']['Tables']['game_codes']['Row'];
+type Profile = Database['public']['Tables']['profiles']['Row'];
+
+interface GameCodeWithProfile extends GameCode {
+  profiles: Profile | null;
+}
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -29,7 +29,7 @@ const Dashboard = () => {
         .from('game_codes')
         .select(`
           *,
-          seller_profile:profiles!game_codes_seller_id_fkey(username, avatar_url)
+          profiles(*)
         `)
         .eq('status', 'available');
       
@@ -135,7 +135,7 @@ const Dashboard = () => {
                     id: game.id,
                     title: game.title,
                     price: game.price,
-                    seller: game.seller_profile?.username || "Anonymous",
+                    seller: game.profiles?.username || "Anonymous",
                     codesAvailable: 1,
                     image: "https://placehold.co/600x400",
                     platform: game.platform,
