@@ -68,6 +68,7 @@ serve(async (req) => {
     if (event.type === 'account.updated') {
       const account = event.data.object;
       console.log('Processing account update for ID:', account.id);
+      console.log('Account metadata:', account.metadata);
       
       try {
         // First, try to find the seller by stripe_account_id
@@ -109,10 +110,24 @@ serve(async (req) => {
             throw updateError;
           }
           console.log('Successfully updated seller record');
+        } else if (account.metadata?.user_id) {
+          // Create new seller record using metadata
+          console.log('Creating new seller record for user:', account.metadata.user_id);
+          const { error: insertError } = await supabaseClient
+            .from('sellers')
+            .insert({
+              id: account.metadata.user_id,
+              stripe_account_id: account.id,
+              status: isActive ? 'active' : 'pending',
+            });
+
+          if (insertError) {
+            console.error('Error creating seller record:', insertError);
+            throw insertError;
+          }
+          console.log('Successfully created seller record');
         } else {
-          console.error('No seller found for Stripe account:', account.id);
-          // We'll just log this case instead of throwing an error
-          // This can happen during initial account creation
+          console.error('No seller found and no user_id in metadata:', account.id);
         }
       } catch (error) {
         console.error('Error processing account update:', error);

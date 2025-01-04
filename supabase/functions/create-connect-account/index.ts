@@ -54,10 +54,13 @@ serve(async (req) => {
           card_payments: { requested: true },
           transfers: { requested: true },
         },
+        metadata: {
+          user_id: user.id, // Store user ID in Stripe metadata
+        },
       });
       accountId = account.id;
 
-      // Create the seller record
+      // Create the seller record with pending status
       const { error: insertError } = await supabaseClient
         .from('sellers')
         .insert({
