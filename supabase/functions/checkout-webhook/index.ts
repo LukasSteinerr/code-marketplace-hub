@@ -69,7 +69,9 @@ serve(async (req) => {
       const { error: updateError } = await supabaseAdmin
         .from('game_codes')
         .update({ status: 'sold' })
-        .eq('id', gameId);
+        .eq('id', gameId)
+        .eq('status', 'available')
+        .single();
 
       if (updateError) {
         console.error('Error updating game code:', updateError);
@@ -84,7 +86,7 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error) {
-    console.error('Webhook error:', error.message);
+    console.error('Webhook error:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       {
