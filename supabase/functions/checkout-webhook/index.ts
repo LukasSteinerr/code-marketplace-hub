@@ -89,7 +89,7 @@ serve(async (req) => {
         throw new Error('Failed to update game code status');
       }
 
-      // Send email with game code to customer
+      // Send email with game code to customer using Resend's default domain
       const emailResponse = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -97,7 +97,7 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: 'Game Store <orders@yourdomain.com>',
+          from: 'Acme <onboarding@resend.dev>', // Using Resend's default sending domain
           to: customerEmail,
           subject: `Your Game Code for ${data.title}`,
           html: `
@@ -113,7 +113,8 @@ serve(async (req) => {
       });
 
       if (!emailResponse.ok) {
-        console.error('Failed to send email:', await emailResponse.text());
+        const errorText = await emailResponse.text();
+        console.error('Failed to send email:', errorText);
         throw new Error('Failed to send game code email');
       }
 
