@@ -13,7 +13,7 @@ type GameCode = Database['public']['Tables']['game_codes']['Row'];
 type Profile = Database['public']['Tables']['profiles']['Row'];
 
 type GameCodeWithProfile = GameCode & {
-  seller_profile: Profile | null;
+  profile?: Profile;
 };
 
 const Dashboard = () => {
@@ -25,21 +25,38 @@ const Dashboard = () => {
     queryKey: ['game-codes'],
     queryFn: async () => {
       console.log('Fetching game codes...');
-      const { data, error } = await supabase
+      
+      // First, fetch available game codes
+      const { data: gameCodesData, error: gameCodesError } = await supabase
         .from('game_codes')
-        .select(`
-          *,
-          seller_profile:profiles(*)
-        `)
+        .select('*')
         .eq('status', 'available');
       
-      if (error) {
-        console.error('Error fetching game codes:', error);
-        throw error;
+      if (gameCodesError) {
+        console.error('Error fetching game codes:', gameCodesError);
+        throw gameCodesError;
       }
-      
-      console.log('Fetched game codes:', data);
-      return data as GameCodeWithProfile[];
+
+      // Then, fetch all relevant profiles
+      const sellerIds = gameCodesData.map(code => code.seller_id);
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', sellerIds);
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        throw profilesError;
+      }
+
+      // Combine the data
+      const combinedData: GameCodeWithProfile[] = gameCodesData.map(gameCode => ({
+        ...gameCode,
+        profile: profilesData?.find(profile => profile.id === gameCode.seller_id)
+      }));
+
+      console.log('Combined data:', combinedData);
+      return combinedData;
     },
     meta: {
       errorMessage: "Failed to load game codes. Please try again.",
@@ -135,7 +152,7 @@ const Dashboard = () => {
                     id: game.id,
                     title: game.title,
                     price: game.price,
-                    seller: game.seller_profile?.username || "Anonymous",
+                    seller: game.profile?.username || "Anonymous",
                     codesAvailable: 1,
                     image: "https://placehold.co/600x400",
                     platform: game.platform,
