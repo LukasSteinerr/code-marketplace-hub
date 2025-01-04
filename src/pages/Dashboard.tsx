@@ -29,10 +29,10 @@ const Dashboard = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
+    <div className="min-h-screen gradient-bg p-6">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header Section with Glass Effect */}
-        <div className="backdrop-blur-md bg-white/10 rounded-2xl p-6 shadow-xl animate-fade-in">
+        <div className="glass-card rounded-xl p-6 animate-fade-in">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               Game Keys Marketplace
@@ -45,12 +45,12 @@ const Dashboard = () => {
                   placeholder="Search games..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-white/5 border-white/10 backdrop-blur-sm transition-all duration-300 focus:bg-white/10 focus:ring-2 focus:ring-primary"
+                  className="pl-10 bg-white/80 border-border/20 transition-all duration-300 focus:bg-white focus:ring-2 focus:ring-primary"
                 />
               </div>
               <Button 
                 variant="outline" 
-                className="flex items-center gap-2 backdrop-blur-sm bg-white/5 border-white/10 hover:bg-white/10 transition-all duration-300"
+                className="flex items-center gap-2 bg-white/80 border-border/20 hover:bg-white/90 transition-all duration-300"
               >
                 <Filter size={18} />
                 Filter
@@ -65,7 +65,7 @@ const Dashboard = () => {
               <Button
                 variant="ghost"
                 onClick={() => navigate("/profile")}
-                className="flex items-center gap-2 hover:bg-white/10 transition-all duration-300"
+                className="flex items-center gap-2 hover:bg-white/50 transition-all duration-300"
               >
                 <User size={18} />
                 Profile
@@ -80,7 +80,7 @@ const Dashboard = () => {
             {[1, 2, 3].map((i) => (
               <div 
                 key={i} 
-                className="h-[400px] rounded-xl bg-white/5 animate-pulse"
+                className="h-[400px] glass-card animate-pulse"
               />
             ))}
           </div>
@@ -109,9 +109,9 @@ const Dashboard = () => {
 
         {/* Empty State */}
         {filteredCodes?.length === 0 && (
-          <div className="text-center py-20 backdrop-blur-md bg-white/5 rounded-2xl animate-fade-in">
-            <h2 className="text-2xl font-semibold text-white/80">No game codes found</h2>
-            <p className="text-white/60 mt-2">Try adjusting your search criteria</p>
+          <div className="text-center py-20 glass-card animate-fade-in">
+            <h2 className="text-2xl font-semibold text-foreground">No game codes found</h2>
+            <p className="text-muted-foreground mt-2">Try adjusting your search criteria</p>
           </div>
         )}
       </div>
