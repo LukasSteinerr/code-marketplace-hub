@@ -20,28 +20,24 @@ serve(async (req) => {
 
     // Get the signature from the headers
     const signature = req.headers.get('stripe-signature');
-    console.log('Received Stripe signature:', signature);
+    console.log('Received webhook with signature:', signature);
     
     if (!signature) {
       throw new Error('No Stripe signature found');
     }
 
-    // Get the raw request body as a buffer
-    const rawBody = await req.arrayBuffer();
-    const body = new TextDecoder().decode(rawBody);
-    
-    console.log('Webhook secret:', Deno.env.get('STRIPE_WEBHOOK_SECRET')?.substring(0, 5) + '...');
-    console.log('Raw body length:', body.length);
+    // Get the raw request body
+    const rawBody = await req.text();
+    console.log('Raw body length:', rawBody.length);
+    console.log('Webhook secret length:', Deno.env.get('STRIPE_WEBHOOK_SECRET')?.length);
 
     // Verify the event
     let event;
     try {
-      event = await stripe.webhooks.constructEventAsync(
-        body,
+      event = stripe.webhooks.constructEvent(
+        rawBody,
         signature,
-        Deno.env.get('STRIPE_WEBHOOK_SECRET') || '',
-        undefined,
-        Stripe.createSubtleCryptoProvider()
+        Deno.env.get('STRIPE_WEBHOOK_SECRET') || ''
       );
     } catch (err) {
       console.error('Webhook signature verification failed:', err);
