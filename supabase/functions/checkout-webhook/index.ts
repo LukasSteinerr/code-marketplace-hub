@@ -31,10 +31,10 @@ serve(async (req) => {
     console.log('Webhook raw body length:', body.length);
     console.log('Webhook secret present:', !!Deno.env.get('STRIPE_WEBHOOK_SECRET'));
 
-    // Verify the event
+    // Verify the event using the async version
     let event;
     try {
-      event = stripe.webhooks.constructEvent(
+      event = await stripe.webhooks.constructEventAsync(
         body,
         signature,
         Deno.env.get('STRIPE_WEBHOOK_SECRET') || ''
