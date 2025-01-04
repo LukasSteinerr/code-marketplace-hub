@@ -29,7 +29,8 @@ const Login = () => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth event:', event, 'Session:', session); // Enhanced logging
+      console.log('Auth event:', event, 'Session:', session);
+      console.log('Available auth providers:', await supabase.auth.getSession());
       
       if (event === 'SIGNED_IN' && session) {
         console.log('User signed in successfully:', session.user);
@@ -61,6 +62,22 @@ const Login = () => {
       subscription.unsubscribe();
     };
   }, [navigate, toast]);
+
+  // Log available providers on component mount
+  useEffect(() => {
+    const logProviders = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        console.log('Auth session data:', data);
+        if (error) {
+          console.error('Error getting session:', error);
+        }
+      } catch (err) {
+        console.error('Error checking providers:', err);
+      }
+    };
+    logProviders();
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-background">
