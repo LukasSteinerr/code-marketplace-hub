@@ -52,12 +52,31 @@ serve(async (req) => {
     }
 
     console.log('Processing webhook event:', event.type);
-    console.log('Event data:', JSON.stringify(event.data.object, null, 2));
 
-    const supabaseClient = createClient(
+    // Create a Supabase client with admin privileges
+    const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
+
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      console.log('Processing successful checkout session:', session.id);
+
+      // Update game code status to 'sold'
+      if (session.metadata?.gameId) {
+        const { error: updateError } = await supabaseAdmin
+          .from('game_codes')
+          .update({ status: 'sold' })
+          .eq('id', session.metadata.gameId);
+
+        if (updateError) {
+          console.error('Error updating game code status:', updateError);
+          throw updateError;
+        }
+        console.log('Successfully marked game code as sold:', session.metadata.gameId);
+      }
+    }
 
     if (event.type === 'account.updated') {
       const account = event.data.object;
@@ -65,7 +84,7 @@ serve(async (req) => {
       
       try {
         // First, try to find the seller by stripe_account_id
-        const { data: existingSeller, error: sellerError } = await supabaseClient
+        const { data: existingSeller, error: sellerError } = await supabaseAdmin
           .from('sellers')
           .select('id')
           .eq('stripe_account_id', account.id)
@@ -90,7 +109,7 @@ serve(async (req) => {
 
         if (existingSeller) {
           console.log('Updating existing seller:', existingSeller.id);
-          const { error: updateError } = await supabaseClient
+          const { error: updateError } = await supabaseAdmin
             .from('sellers')
             .update({ 
               status: isActive ? 'active' : 'pending',
