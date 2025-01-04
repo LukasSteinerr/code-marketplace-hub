@@ -12,9 +12,9 @@ import { Database } from "@/integrations/supabase/types";
 type GameCode = Database['public']['Tables']['game_codes']['Row'];
 type Profile = Database['public']['Tables']['profiles']['Row'];
 
-interface GameCodeWithProfile extends GameCode {
-  profiles: Profile | null;
-}
+type GameCodeWithProfile = GameCode & {
+  profiles: Profile;
+};
 
 const Dashboard = () => {
   const navigate = useNavigate();
