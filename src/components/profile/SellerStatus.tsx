@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { CheckCircle, AlertCircle } from "lucide-react";
+import { CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -109,12 +109,48 @@ export const SellerStatus = ({ status: initialStatus }: SellerStatusProps) => {
     }
   };
 
+  const handleRestartOnboarding = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      // Delete existing seller record
+      const { error: deleteError } = await supabase
+        .from('sellers')
+        .delete()
+        .eq('id', session.user.id);
+
+      if (deleteError) throw deleteError;
+
+      // Start new onboarding process
+      const { data, error } = await supabase.functions.invoke('create-connect-account', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+      
+      if (error) throw error;
+      if (data?.url) window.location.href = data.url;
+
+    } catch (error: any) {
+      console.error('Restart onboarding error:', error);
+      toast({
+        variant: "destructive",
+        title: "Error restarting onboarding",
+        description: error.message
+      });
+    }
+  };
+
   const getStatusDisplay = () => {
     if (!status) return {
       icon: <AlertCircle className="h-5 w-5 text-yellow-500" />,
       text: "Not registered as a seller",
       description: "Register as a seller to start listing game codes",
-      showButton: true
+      showStartButton: true,
+      showRestartButton: true
     };
 
     switch (status) {
@@ -123,28 +159,32 @@ export const SellerStatus = ({ status: initialStatus }: SellerStatusProps) => {
           icon: <CheckCircle className="h-5 w-5 text-green-500" />,
           text: "Active Seller",
           description: "You can list and sell game codes",
-          showButton: false
+          showStartButton: false,
+          showRestartButton: false
         };
       case 'pending':
         return {
           icon: <AlertCircle className="h-5 w-5 text-yellow-500" />,
           text: "Pending Seller",
           description: "Your seller application is being processed",
-          showButton: false
+          showStartButton: false,
+          showRestartButton: true
         };
       case 'onboarding':
         return {
           icon: <AlertCircle className="h-5 w-5 text-blue-500" />,
           text: "Complete Onboarding",
           description: "Please complete your seller onboarding",
-          showButton: true
+          showStartButton: true,
+          showRestartButton: true
         };
       default:
         return {
           icon: <AlertCircle className="h-5 w-5 text-red-500" />,
           text: "Unknown Status",
           description: "Please contact support",
-          showButton: false
+          showStartButton: false,
+          showRestartButton: true
         };
     }
   };
@@ -160,11 +200,23 @@ export const SellerStatus = ({ status: initialStatus }: SellerStatusProps) => {
           <p className="font-medium">{statusDisplay.text}</p>
           <p className="text-sm text-muted-foreground">{statusDisplay.description}</p>
         </div>
-        {statusDisplay.showButton && (
-          <Button onClick={handleStripeOnboarding}>
-            Start Selling
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {statusDisplay.showRestartButton && (
+            <Button 
+              onClick={handleRestartOnboarding}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Restart Onboarding
+            </Button>
+          )}
+          {statusDisplay.showStartButton && (
+            <Button onClick={handleStripeOnboarding}>
+              Start Selling
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
