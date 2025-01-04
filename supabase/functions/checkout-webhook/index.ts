@@ -1,11 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from 'https://esm.sh/stripe@14.21.0';
+import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno&no-check';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const cryptoProvider = Stripe.createSubtleCryptoProvider();
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -31,13 +33,15 @@ serve(async (req) => {
     console.log('Raw body length:', rawBody.length);
     console.log('Webhook secret length:', Deno.env.get('STRIPE_WEBHOOK_SECRET')?.length);
 
-    // Verify the event
+    // Verify the event using the async version
     let event;
     try {
-      event = stripe.webhooks.constructEvent(
+      event = await stripe.webhooks.constructEventAsync(
         rawBody,
         signature,
-        Deno.env.get('STRIPE_WEBHOOK_SECRET') || ''
+        Deno.env.get('STRIPE_WEBHOOK_SECRET') || '',
+        undefined,
+        cryptoProvider
       );
     } catch (err) {
       console.error('Webhook signature verification failed:', err);
