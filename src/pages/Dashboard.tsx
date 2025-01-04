@@ -10,11 +10,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Database } from "@/integrations/supabase/types";
 
 type GameCode = Database['public']['Tables']['game_codes']['Row'];
-type Profile = Database['public']['Tables']['profiles']['Row'];
-
-type GameCodeWithProfile = GameCode & {
-  profile?: Profile;
-};
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -26,10 +21,12 @@ const Dashboard = () => {
     queryFn: async () => {
       console.log('Fetching game codes...');
       
-      // First, fetch available game codes
       const { data: gameCodesData, error: gameCodesError } = await supabase
         .from('game_codes')
-        .select('*')
+        .select(`
+          *,
+          profile:profiles!game_codes_seller_id_fkey(*)
+        `)
         .eq('status', 'available');
       
       if (gameCodesError) {
@@ -37,26 +34,8 @@ const Dashboard = () => {
         throw gameCodesError;
       }
 
-      // Then, fetch all relevant profiles
-      const sellerIds = gameCodesData.map(code => code.seller_id);
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .in('id', sellerIds);
-
-      if (profilesError) {
-        console.error('Error fetching profiles:', profilesError);
-        throw profilesError;
-      }
-
-      // Combine the data
-      const combinedData: GameCodeWithProfile[] = gameCodesData.map(gameCode => ({
-        ...gameCode,
-        profile: profilesData?.find(profile => profile.id === gameCode.seller_id)
-      }));
-
-      console.log('Combined data:', combinedData);
-      return combinedData;
+      console.log('Game codes data:', gameCodesData);
+      return gameCodesData;
     },
     meta: {
       errorMessage: "Failed to load game codes. Please try again.",
@@ -95,12 +74,12 @@ const Dashboard = () => {
                   placeholder="Search games..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-white/80 border-border/20 transition-all duration-300 focus:bg-white focus:ring-2 focus:ring-primary"
+                  className="pl-10 bg-white/5 border-border/20 transition-all duration-300 focus:bg-white/10 focus:ring-2 focus:ring-primary"
                 />
               </div>
               <Button 
                 variant="outline" 
-                className="flex items-center gap-2 bg-white/80 border-border/20 hover:bg-white/90 transition-all duration-300"
+                className="flex items-center gap-2 bg-white/5 border-border/20 hover:bg-white/10 transition-all duration-300"
               >
                 <Filter size={18} />
                 Filter
@@ -115,7 +94,7 @@ const Dashboard = () => {
               <Button
                 variant="ghost"
                 onClick={() => navigate("/profile")}
-                className="flex items-center gap-2 hover:bg-white/50 transition-all duration-300"
+                className="flex items-center gap-2 hover:bg-white/10 transition-all duration-300"
               >
                 <User size={18} />
                 Profile
