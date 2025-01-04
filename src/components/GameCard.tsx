@@ -57,26 +57,34 @@ const GameCard = ({ game }: GameCardProps) => {
   };
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="group overflow-hidden transition-all duration-300 hover:translate-y-[-4px] hover:shadow-xl bg-white/5 backdrop-blur-sm border-white/10">
       <CardHeader className="p-0">
-        <img
-          src={game.image}
-          alt={game.title}
-          className="w-full h-48 object-cover"
-        />
+        <div className="relative overflow-hidden">
+          <img
+            src={game.image}
+            alt={game.title}
+            className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-110"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+        </div>
       </CardHeader>
-      <CardContent className="p-4">
-        <CardTitle className="text-xl mb-2">{game.title}</CardTitle>
+      <CardContent className="p-4 relative z-10">
+        <CardTitle className="text-xl mb-2 bg-gradient-to-r from-white to-white/80 bg-clip-text">
+          {game.title}
+        </CardTitle>
         <div className="flex justify-between items-center mb-2">
           <span className="text-2xl font-bold text-primary">${game.price}</span>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-sm px-2 py-1 rounded-full bg-white/10 text-white/70">
             {game.codesAvailable} available
           </span>
         </div>
-        <p className="text-sm text-muted-foreground">Seller: {game.seller}</p>
+        <p className="text-sm text-white/60">Seller: {game.seller}</p>
       </CardContent>
       <CardFooter className="p-4 pt-0">
-        <Button className="w-full" onClick={handleBuyNow}>
+        <Button 
+          className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-all duration-300"
+          onClick={handleBuyNow}
+        >
           <ShoppingCart className="w-4 h-4 mr-2" />
           Buy Now
         </Button>

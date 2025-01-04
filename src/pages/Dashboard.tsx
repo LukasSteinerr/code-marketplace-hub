@@ -29,60 +29,89 @@ const Dashboard = () => {
   );
 
   return (
-    <div className="min-h-screen p-6 animate-fadeIn">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-          <h1 className="text-3xl font-bold">Game Keys Marketplace</h1>
-          <div className="flex items-center gap-4 w-full md:w-auto">
-            <div className="relative flex-1 md:w-80">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search games..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-muted"
-              />
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header Section with Glass Effect */}
+        <div className="backdrop-blur-md bg-white/10 rounded-2xl p-6 shadow-xl animate-fade-in">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              Game Keys Marketplace
+            </h1>
+            <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+              <div className="relative flex-1 md:w-80 group">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground group-hover:text-primary transition-colors" />
+                <Input
+                  type="text"
+                  placeholder="Search games..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 bg-white/5 border-white/10 backdrop-blur-sm transition-all duration-300 focus:bg-white/10 focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <Button 
+                variant="outline" 
+                className="flex items-center gap-2 backdrop-blur-sm bg-white/5 border-white/10 hover:bg-white/10 transition-all duration-300"
+              >
+                <Filter size={18} />
+                Filter
+              </Button>
+              <Button 
+                onClick={() => navigate("/list-code")} 
+                className="flex items-center gap-2 bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-all duration-300"
+              >
+                <Plus size={18} />
+                List Code
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => navigate("/profile")}
+                className="flex items-center gap-2 hover:bg-white/10 transition-all duration-300"
+              >
+                <User size={18} />
+                Profile
+              </Button>
             </div>
-            <Button variant="outline" className="flex items-center gap-2">
-              <Filter size={18} />
-              Filter
-            </Button>
-            <Button 
-              onClick={() => navigate("/list-code")} 
-              className="flex items-center gap-2"
-            >
-              <Plus size={18} />
-              List Code
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => navigate("/profile")}
-              className="flex items-center gap-2"
-            >
-              <User size={18} />
-              Profile
-            </Button>
           </div>
         </div>
 
+        {/* Game Cards Grid */}
         {isLoading ? (
-          <div className="text-center">Loading...</div>
-        ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCodes?.map((game) => (
-              <GameCard 
-                key={game.id} 
-                game={{
-                  id: game.id,
-                  title: game.title,
-                  price: game.price,
-                  seller: "Seller",
-                  codesAvailable: 1,
-                  image: "https://placehold.co/300x400",
-                }} 
+            {[1, 2, 3].map((i) => (
+              <div 
+                key={i} 
+                className="h-[400px] rounded-xl bg-white/5 animate-pulse"
               />
             ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredCodes?.map((game, index) => (
+              <div 
+                key={game.id}
+                className="opacity-0 animate-[fade-in_0.5s_ease-out_forwards]"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <GameCard
+                  game={{
+                    id: game.id,
+                    title: game.title,
+                    price: game.price,
+                    seller: "Seller",
+                    codesAvailable: 1,
+                    image: "https://placehold.co/300x400",
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Empty State */}
+        {filteredCodes?.length === 0 && (
+          <div className="text-center py-20 backdrop-blur-md bg-white/5 rounded-2xl animate-fade-in">
+            <h2 className="text-2xl font-semibold text-white/80">No game codes found</h2>
+            <p className="text-white/60 mt-2">Try adjusting your search criteria</p>
           </div>
         )}
       </div>
