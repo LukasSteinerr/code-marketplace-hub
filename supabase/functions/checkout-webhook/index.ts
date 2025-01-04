@@ -17,6 +17,7 @@ serve(async (req) => {
     const signature = req.headers.get('stripe-signature');
 
     if (!signature) {
+      console.error('No stripe signature found');
       throw new Error('No stripe signature found');
     }
 
@@ -31,6 +32,7 @@ serve(async (req) => {
     // Verify the webhook signature
     const webhookSecret = Deno.env.get('STRIPE_CHECKOUT_WEBHOOK_SECRET');
     if (!webhookSecret) {
+      console.error('Webhook secret not found');
       throw new Error('Webhook secret not found');
     }
 
@@ -48,6 +50,7 @@ serve(async (req) => {
       const gameId = session.metadata?.gameId;
 
       if (!gameId) {
+        console.error('No gameId found in session metadata');
         throw new Error('No gameId found in session metadata');
       }
 
@@ -66,11 +69,15 @@ serve(async (req) => {
       );
 
       // Update the game code status to sold
-      const { error: updateError } = await supabaseAdmin
+      const { data, error: updateError } = await supabaseAdmin
         .from('game_codes')
-        .update({ status: 'sold' })
+        .update({ 
+          status: 'sold',
+          updated_at: new Date().toISOString()
+        })
         .eq('id', gameId)
         .eq('status', 'available')
+        .select()
         .single();
 
       if (updateError) {
@@ -78,7 +85,12 @@ serve(async (req) => {
         throw new Error(`Error updating game code: ${updateError.message}`);
       }
 
-      console.log('Successfully updated game code status to sold');
+      if (!data) {
+        console.error('No game code was updated - it may not exist or already be sold');
+        throw new Error('Failed to update game code status');
+      }
+
+      console.log('Successfully updated game code status to sold:', data);
     }
 
     return new Response(JSON.stringify({ received: true }), {
