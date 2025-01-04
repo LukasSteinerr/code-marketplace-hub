@@ -32,13 +32,15 @@ const Dashboard = () => {
       }
 
       console.log('Game codes fetched:', data);
-      return data;
+      return data as GameCode[];
     }
   });
 
   const filteredCodes = gameCodes?.filter(code => 
     code.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  ) || [];
+
+  console.log('Filtered codes:', filteredCodes); // Debug log
 
   const getGameImage = (title: string) => {
     const gameImages: Record<string, string> = {
@@ -115,34 +117,26 @@ const Dashboard = () => {
               <h2 className="text-xl font-semibold text-foreground">Error loading game codes</h2>
               <p className="text-muted-foreground mt-2">Please try again later</p>
             </div>
-          ) : (
+          ) : filteredCodes.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredCodes?.map((game, index) => (
-                <div 
+              {filteredCodes.map((game) => (
+                <GameCard
                   key={game.id}
-                  className="opacity-0 animate-[fade-in_0.5s_ease-out_forwards]"
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  <GameCard
-                    game={{
-                      id: game.id,
-                      title: game.title,
-                      price: Number(game.price),
-                      seller: "Anonymous",
-                      codesAvailable: 1,
-                      image: getGameImage(game.title),
-                      platform: game.platform,
-                      region: game.region || "Global",
-                      originalValue: game.original_value ? Number(game.original_value) : undefined,
-                    }}
-                  />
-                </div>
+                  game={{
+                    id: game.id,
+                    title: game.title,
+                    price: Number(game.price),
+                    seller: "Anonymous",
+                    codesAvailable: 1,
+                    image: getGameImage(game.title),
+                    platform: game.platform,
+                    region: game.region || "Global",
+                    originalValue: game.original_value ? Number(game.original_value) : undefined,
+                  }}
+                />
               ))}
             </div>
-          )}
-
-          {/* Empty State */}
-          {filteredCodes?.length === 0 && !isLoading && !error && (
+          ) : (
             <div className="text-center py-20 bg-card/10 backdrop-blur-sm rounded-xl border border-border/10">
               <Package className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
               <h2 className="text-xl font-semibold text-foreground">No game codes found</h2>
