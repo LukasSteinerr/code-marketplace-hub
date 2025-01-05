@@ -83,18 +83,27 @@ serve(async (req) => {
         capabilities: account.capabilities,
       });
 
+      // Check if the account is fully enabled
+      const isActive = account.charges_enabled && 
+                      account.details_submitted && 
+                      account.payouts_enabled;
+
+      // Check if the account has completed onboarding
+      const hasCompletedOnboarding = account.details_submitted;
+
       let status;
-      if (account.charges_enabled && account.details_submitted && account.payouts_enabled) {
+      if (isActive) {
         status = 'active';
         console.log('All requirements met, setting status to active');
-      } else if (account.details_submitted) {
+      } else if (hasCompletedOnboarding) {
         status = 'pending';
-        console.log('Details submitted but not fully enabled, setting status to pending');
+        console.log('Onboarding completed but not fully enabled, setting status to pending');
       } else {
         status = 'onboarding';
         console.log('Onboarding incomplete, setting status to onboarding');
       }
 
+      // Always update the status to ensure it's current
       console.log('Updating seller status to:', status);
       const { error: updateError } = await supabaseClient
         .from('sellers')
