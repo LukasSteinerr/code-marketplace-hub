@@ -36,12 +36,16 @@ serve(async (req) => {
       apiVersion: '2023-10-16',
     });
 
-    // Check if seller already exists
-    const { data: existingSeller } = await supabaseClient
+    // First check if seller exists and get their current status
+    const { data: existingSeller, error: sellerError } = await supabaseClient
       .from('sellers')
-      .select('stripe_account_id')
+      .select('*')
       .eq('id', user.id)
       .maybeSingle();
+
+    if (sellerError) {
+      throw sellerError;
+    }
 
     let accountId = existingSeller?.stripe_account_id;
 
@@ -60,18 +64,35 @@ serve(async (req) => {
       });
       accountId = account.id;
 
-      // Create the seller record with pending status
-      const { error: insertError } = await supabaseClient
-        .from('sellers')
-        .insert({
-          id: user.id,
-          stripe_account_id: accountId,
-          status: 'onboarding',
-        });
+      if (existingSeller) {
+        // Update existing seller record
+        const { error: updateError } = await supabaseClient
+          .from('sellers')
+          .update({
+            stripe_account_id: accountId,
+            status: 'onboarding',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user.id);
 
-      if (insertError) {
-        console.error('Error creating seller record:', insertError);
-        throw insertError;
+        if (updateError) {
+          console.error('Error updating seller record:', updateError);
+          throw updateError;
+        }
+      } else {
+        // Create new seller record
+        const { error: insertError } = await supabaseClient
+          .from('sellers')
+          .insert({
+            id: user.id,
+            stripe_account_id: accountId,
+            status: 'onboarding',
+          });
+
+        if (insertError) {
+          console.error('Error creating seller record:', insertError);
+          throw insertError;
+        }
       }
     }
 
