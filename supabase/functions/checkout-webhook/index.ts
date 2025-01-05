@@ -39,16 +39,17 @@ serve(async (req) => {
 
     console.log('Processing webhook event:', event.type);
 
-    if (event.type === 'payment_intent.succeeded') {
-      const paymentIntent = event.data.object;
-      const gameId = paymentIntent.metadata.gameId;
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      const gameId = session.metadata.gameId;
+      const buyerId = session.metadata.buyerId;
 
       if (!gameId) {
-        console.error('No gameId found in payment intent metadata');
-        throw new Error('No gameId found in payment intent metadata');
+        console.error('No gameId found in session metadata');
+        throw new Error('No gameId found in session metadata');
       }
 
-      console.log('Processing successful payment for game:', gameId);
+      console.log('Processing successful checkout for game:', gameId);
 
       const supabaseAdmin = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
@@ -61,12 +62,13 @@ serve(async (req) => {
         }
       );
 
-      // Update game code status to sold and payment status to paid
+      // Update game code status to sold and set the buyer_id
       const { error: updateError } = await supabaseAdmin
         .from('game_codes')
         .update({ 
-          payment_status: 'paid',
           status: 'sold',
+          payment_status: 'paid',
+          buyer_id: buyerId,
           updated_at: new Date().toISOString()
         })
         .eq('id', gameId);
@@ -76,7 +78,7 @@ serve(async (req) => {
         throw new Error(`Error updating game code: ${updateError.message}`);
       }
 
-      console.log('Successfully processed payment and updated game status');
+      console.log('Successfully processed checkout and updated game status to sold');
     }
 
     return new Response(JSON.stringify({ received: true }), {
