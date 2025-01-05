@@ -49,14 +49,27 @@ serve(async (req) => {
     if (action === "verify") {
       // Check available balance first
       const balance = await stripe.balance.retrieve();
-      const availableBalance = balance.available.reduce((sum, bal) => sum + bal.amount, 0);
+      console.log('Current Stripe balance:', balance);
+
+      // Log all available balances by currency
+      balance.available.forEach(bal => {
+        console.log(`Available balance in ${bal.currency}: ${bal.amount}`);
+      });
+
+      const availableBalance = balance.available.reduce((sum, bal) => {
+        if (bal.currency === 'usd') return sum + bal.amount;
+        return sum;
+      }, 0);
+
       const transferAmount = Math.round(game.price * 90); // 90% to seller
 
       console.log('Transfer attempt details:', {
-        availableBalance,
-        transferAmount,
-        difference: availableBalance - transferAmount,
-        currency: 'usd'
+        price: game.price,
+        availableBalanceUSD: availableBalance / 100,
+        transferAmountUSD: transferAmount / 100,
+        difference: (availableBalance - transferAmount) / 100,
+        currency: 'usd',
+        stripeAccountId: game.sellers?.stripe_account_id
       });
 
       if (availableBalance < transferAmount) {
@@ -65,6 +78,12 @@ serve(async (req) => {
 
       // Release payment to seller
       if (game.payment_intent_id && game.sellers?.stripe_account_id) {
+        console.log('Attempting transfer with details:', {
+          amount: transferAmount,
+          destination: game.sellers.stripe_account_id,
+          transferGroup: `game_${gameId}`,
+        });
+
         const transfer = await stripe.transfers.create({
           amount: transferAmount,
           currency: "usd",
@@ -132,7 +151,8 @@ serve(async (req) => {
       error: error.message,
       type: error.type,
       code: error.code,
-      requestId: error.requestId
+      requestId: error.requestId,
+      stack: error.stack
     });
 
     return new Response(
