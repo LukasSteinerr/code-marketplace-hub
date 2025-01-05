@@ -15,7 +15,7 @@ serve(async (req) => {
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '', // Using service role key to bypass RLS
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
     const authHeader = req.headers.get('Authorization')!;
@@ -27,60 +27,105 @@ serve(async (req) => {
     }
 
     // Get seller data
-    const { data: seller } = await supabaseClient
+    const { data: seller, error: sellerError } = await supabaseClient
       .from('sellers')
-      .select('stripe_account_id')
+      .select('stripe_account_id, status')
       .eq('id', user.id)
       .maybeSingle();
 
-    if (!seller?.stripe_account_id) {
-      throw new Error('No Stripe account found');
+    if (sellerError) {
+      console.error('Error fetching seller:', sellerError);
+      throw sellerError;
     }
 
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', { // Changed from STRIPE_PUBLIC_KEY to STRIPE_SECRET_KEY
+    if (!seller?.stripe_account_id) {
+      return new Response(
+        JSON.stringify({ status: seller?.status || 'pending' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    }
+
+    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
       apiVersion: '2023-10-16',
     });
 
-    // Get Stripe account status
-    const account = await stripe.accounts.retrieve(seller.stripe_account_id);
-    console.log('Stripe account status:', {
-      charges_enabled: account.charges_enabled,
-      details_submitted: account.details_submitted,
-      payouts_enabled: account.payouts_enabled,
-    });
+    try {
+      // Get Stripe account status
+      const account = await stripe.accounts.retrieve(seller.stripe_account_id);
+      console.log('Stripe account status:', {
+        charges_enabled: account.charges_enabled,
+        details_submitted: account.details_submitted,
+        payouts_enabled: account.payouts_enabled,
+      });
 
-    let status;
-    if (account.charges_enabled && account.details_submitted && account.payouts_enabled) {
-      status = 'active';
-    } else if (account.details_submitted) {
-      status = 'pending';
-    } else {
-      status = 'onboarding';
-    }
-
-    // Update seller status in database
-    const { error: updateError } = await supabaseClient
-      .from('sellers')
-      .update({ 
-        status: status,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', user.id);
-
-    if (updateError) {
-      console.error('Error updating seller status:', updateError);
-      throw updateError;
-    }
-
-    console.log('Successfully updated seller status to:', status);
-
-    return new Response(
-      JSON.stringify({ status }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
+      let status;
+      if (account.charges_enabled && account.details_submitted && account.payouts_enabled) {
+        status = 'active';
+      } else if (account.details_submitted) {
+        status = 'pending';
+      } else {
+        status = 'onboarding';
       }
-    );
+
+      // Update seller status in database
+      const { error: updateError } = await supabaseClient
+        .from('sellers')
+        .update({ 
+          status: status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Error updating seller status:', updateError);
+        throw updateError;
+      }
+
+      console.log('Successfully updated seller status to:', status);
+
+      return new Response(
+        JSON.stringify({ status }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    } catch (stripeError: any) {
+      console.error('Stripe error:', stripeError);
+      
+      // If the account is invalid or not accessible, reset the seller status
+      if (stripeError.code === 'account_invalid') {
+        const { error: updateError } = await supabaseClient
+          .from('sellers')
+          .update({ 
+            status: 'pending',
+            stripe_account_id: null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user.id);
+
+        if (updateError) {
+          console.error('Error resetting seller status:', updateError);
+          throw updateError;
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            status: 'pending',
+            error: 'Stripe account access invalid. Please try onboarding again.' 
+          }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+          }
+        );
+      }
+
+      throw stripeError;
+    }
   } catch (error) {
     console.error('Error checking account status:', error);
     return new Response(
