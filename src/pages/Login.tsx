@@ -11,20 +11,23 @@ const Login = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Clear any existing session data on mount
-    const clearSession = async () => {
-      const { error } = await supabase.auth.signOut({ scope: 'local' });
-      if (error) {
-        console.error('Error clearing session:', error);
-        toast({
-          title: "Session Error",
-          description: error.message,
-          variant: "destructive",
-        });
+    // Check if there's an active session first
+    const checkAndClearSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session) {
+        try {
+          const { error } = await supabase.auth.signOut();
+          if (error) {
+            console.error('Error during sign out:', error);
+          }
+        } catch (err) {
+          console.error('Error during sign out:', err);
+        }
       }
     };
     
-    clearSession();
+    checkAndClearSession();
 
     // Set up auth state listener
     const {
