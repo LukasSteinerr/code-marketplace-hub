@@ -49,26 +49,29 @@ serve(async (req) => {
     if (action === "verify") {
       // Check available balance first
       const balance = await stripe.balance.retrieve();
-      console.log('Current Stripe balance:', balance);
+      console.log('Current Stripe balance:', JSON.stringify(balance, null, 2));
 
-      // Log all available balances by currency
-      balance.available.forEach(bal => {
-        console.log(`Available balance in ${bal.currency}: ${bal.amount}`);
-      });
+      // Get the payment intent to check the currency
+      const paymentIntent = game.payment_intent_id ? 
+        await stripe.paymentIntents.retrieve(game.payment_intent_id) : null;
+      
+      const currency = paymentIntent?.currency || 'usd';
+      console.log('Payment currency:', currency);
 
-      const availableBalance = balance.available.reduce((sum, bal) => {
-        if (bal.currency === 'usd') return sum + bal.amount;
-        return sum;
-      }, 0);
+      // Find balance in the correct currency
+      const availableBalance = balance.available.find(bal => bal.currency === currency)?.amount || 0;
+      console.log(`Available balance in ${currency}:`, availableBalance);
 
+      // Calculate transfer amount in the same currency
       const transferAmount = Math.round(game.price * 90); // 90% to seller
+      console.log('Transfer amount:', transferAmount);
 
       console.log('Transfer attempt details:', {
         price: game.price,
-        availableBalanceUSD: availableBalance / 100,
-        transferAmountUSD: transferAmount / 100,
+        availableBalance: availableBalance / 100,
+        transferAmount: transferAmount / 100,
         difference: (availableBalance - transferAmount) / 100,
-        currency: 'usd',
+        currency: currency,
         stripeAccountId: game.sellers?.stripe_account_id
       });
 
@@ -80,13 +83,14 @@ serve(async (req) => {
       if (game.payment_intent_id && game.sellers?.stripe_account_id) {
         console.log('Attempting transfer with details:', {
           amount: transferAmount,
+          currency: currency,
           destination: game.sellers.stripe_account_id,
           transferGroup: `game_${gameId}`,
         });
 
         const transfer = await stripe.transfers.create({
           amount: transferAmount,
-          currency: "usd",
+          currency: currency,
           destination: game.sellers.stripe_account_id,
           transfer_group: `game_${gameId}`,
           description: `Payment for verified game code ${gameId}`,
@@ -95,6 +99,7 @@ serve(async (req) => {
         console.log('Transfer successful:', {
           transferId: transfer.id,
           amount: transfer.amount,
+          currency: transfer.currency,
           destination: transfer.destination,
           status: transfer.status
         });
