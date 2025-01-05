@@ -23,7 +23,6 @@ const GameDetails = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Handle redirect after successful purchase
   useEffect(() => {
     const status = searchParams.get('status');
     if (status === 'success') {
@@ -45,7 +44,7 @@ const GameDetails = () => {
           seller_profile:profiles!game_codes_seller_profile_fkey(*)
         `)
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       if (!gameData) throw new Error('Game not found');
@@ -72,11 +71,14 @@ const GameDetails = () => {
         .from('sellers')
         .select('status, stripe_account_id')
         .eq('id', game?.seller_id)
-        .single();
+        .maybeSingle();
 
-      if (sellerError) throw sellerError;
+      if (sellerError) {
+        console.error('Error fetching seller:', sellerError);
+        throw sellerError;
+      }
 
-      if (!sellerData?.stripe_account_id || sellerData.status !== 'active') {
+      if (!sellerData || !sellerData.stripe_account_id || sellerData.status !== 'active') {
         toast({
           title: "Purchase unavailable",
           description: "This seller is not yet configured to accept payments. Please try another listing.",
