@@ -99,12 +99,7 @@ serve(async (req) => {
     // Get the base URL ensuring HTTPS for non-localhost
     const frontendUrl = Deno.env.get('FRONTEND_URL') || '';
     const origin = req.headers.get('origin') || frontendUrl;
-    let baseUrl = origin;
-
-    // Only use HTTP for localhost, force HTTPS for all other environments
-    if (!baseUrl.includes('localhost')) {
-      baseUrl = baseUrl.replace('http://', 'https://');
-    }
+    const baseUrl = origin.includes('localhost') ? origin : origin.replace(/^http:/, 'https:');
 
     console.log('Creating account link with URLs:', {
       refresh: `${baseUrl}/profile`,

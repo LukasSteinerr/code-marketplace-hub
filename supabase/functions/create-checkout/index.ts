@@ -17,7 +17,7 @@ serve(async (req) => {
     
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '', // Using service role to bypass RLS
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
     // Get the game details and seller's Stripe account ID
@@ -56,9 +56,10 @@ serve(async (req) => {
     const amount = Math.round(game.price * 100); // Convert to cents
     const applicationFeeAmount = Math.round(amount * 0.10); // 10% platform fee
 
-    // Get the origin and ensure it's HTTPS for live mode
-    const origin = req.headers.get('origin') || Deno.env.get('FRONTEND_URL') || '';
-    const baseUrl = origin.startsWith('http://localhost') ? origin : origin.replace('http://', 'https://');
+    // Get the origin and ensure it's HTTPS for non-localhost
+    const frontendUrl = Deno.env.get('FRONTEND_URL') || '';
+    const origin = req.headers.get('origin') || frontendUrl;
+    const baseUrl = origin.includes('localhost') ? origin : origin.replace(/^http:/, 'https:');
 
     console.log('Creating checkout session with URLs:', {
       success: `${baseUrl}/game/${gameId}?status=success`,
