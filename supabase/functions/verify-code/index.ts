@@ -47,14 +47,37 @@ serve(async (req) => {
     }
 
     if (action === "verify") {
+      // Check available balance first
+      const balance = await stripe.balance.retrieve();
+      const availableBalance = balance.available.reduce((sum, bal) => sum + bal.amount, 0);
+      const transferAmount = Math.round(game.price * 90); // 90% to seller
+
+      console.log('Transfer attempt details:', {
+        availableBalance,
+        transferAmount,
+        difference: availableBalance - transferAmount,
+        currency: 'usd'
+      });
+
+      if (availableBalance < transferAmount) {
+        throw new Error(`Insufficient balance. Available: $${availableBalance/100}, Required: $${transferAmount/100}. Please add funds using test card 4000000000000077`);
+      }
+
       // Release payment to seller
       if (game.payment_intent_id && game.sellers?.stripe_account_id) {
-        await stripe.transfers.create({
-          amount: Math.round(game.price * 90), // 90% to seller
+        const transfer = await stripe.transfers.create({
+          amount: transferAmount,
           currency: "usd",
           destination: game.sellers.stripe_account_id,
           transfer_group: `game_${gameId}`,
           description: `Payment for verified game code ${gameId}`,
+        });
+
+        console.log('Transfer successful:', {
+          transferId: transfer.id,
+          amount: transfer.amount,
+          destination: transfer.destination,
+          status: transfer.status
         });
       }
 
@@ -84,8 +107,14 @@ serve(async (req) => {
 
       // Refund the payment if it exists
       if (game.payment_intent_id) {
-        await stripe.refunds.create({
+        const refund = await stripe.refunds.create({
           payment_intent: game.payment_intent_id,
+        });
+
+        console.log('Refund processed:', {
+          refundId: refund.id,
+          amount: refund.amount,
+          status: refund.status
         });
       }
     }
@@ -99,9 +128,19 @@ serve(async (req) => {
     );
 
   } catch (error: any) {
-    console.error("Error:", error);
+    console.error('Error processing verification:', {
+      error: error.message,
+      type: error.type,
+      code: error.code,
+      requestId: error.requestId
+    });
+
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        details: error.code === 'balance_insufficient' ? 
+          'To add funds in test mode, create a charge using card number 4000000000000077' : undefined
+      }),
       { 
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,
