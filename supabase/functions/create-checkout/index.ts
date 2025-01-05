@@ -17,7 +17,7 @@ serve(async (req) => {
     
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '', // Using service role to bypass RLS
     );
 
     // Get the game details and seller's Stripe account ID
@@ -25,19 +25,25 @@ serve(async (req) => {
       .from('game_codes')
       .select(`
         *,
-        sellers (
-          stripe_account_id
+        seller:sellers!game_codes_seller_id_sellers_fkey (
+          stripe_account_id,
+          status
         )
       `)
       .eq('id', gameId)
       .single();
 
     if (gameError || !game) {
+      console.error('Game fetch error:', gameError);
       throw new Error('Game not found');
     }
 
-    const sellerStripeAccountId = game.sellers?.stripe_account_id;
-    if (!sellerStripeAccountId) {
+    // Verify seller's Stripe account is properly configured
+    if (!game.seller?.stripe_account_id || game.seller.status !== 'active') {
+      console.error('Seller not configured:', {
+        stripe_account_id: game.seller?.stripe_account_id,
+        status: game.seller?.status
+      });
       throw new Error('Seller not properly configured');
     }
 
@@ -50,39 +56,52 @@ serve(async (req) => {
     const amount = Math.round(game.price * 100); // Convert to cents
     const applicationFeeAmount = Math.round(amount * 0.10); // 10% platform fee
 
-    // Create PaymentIntent instead of a Checkout Session
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount,
-      currency: 'usd',
-      application_fee_amount: applicationFeeAmount,
+    // Create a Checkout Session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: game.title,
+            description: game.description || undefined,
+          },
+          unit_amount: amount,
+        },
+        quantity: 1,
+      }],
+      mode: 'payment',
+      success_url: `${req.headers.get('origin')}/game/${gameId}?status=success`,
+      cancel_url: `${req.headers.get('origin')}/game/${gameId}?status=cancelled`,
+      payment_intent_data: {
+        application_fee_amount: applicationFeeAmount,
+        transfer_data: {
+          destination: game.seller.stripe_account_id,
+        },
+      },
       metadata: {
         gameId: game.id,
         sellerId: game.seller_id,
       },
-      automatic_payment_methods: {
-        enabled: true,
-      },
     });
 
-    // Update game code with payment intent ID
+    // Update game code with session ID
     const { error: updateError } = await supabaseClient
       .from('game_codes')
       .update({ 
-        payment_intent_id: paymentIntent.id,
+        payment_intent_id: session.payment_intent,
         payment_status: 'pending'
       })
       .eq('id', gameId);
 
     if (updateError) {
+      console.error('Game update error:', updateError);
       throw updateError;
     }
 
-    console.log('Payment intent created:', paymentIntent.id);
+    console.log('Checkout session created:', session.id);
     return new Response(
-      JSON.stringify({ 
-        clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id 
-      }),
+      JSON.stringify({ url: session.url }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
