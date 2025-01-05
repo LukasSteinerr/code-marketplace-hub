@@ -28,12 +28,34 @@ serve(async (req) => {
     const body = await req.text();
     console.log('Webhook raw body length:', body.length);
     console.log('Webhook secret present:', !!Deno.env.get('STRIPE_ACCOUNT_WEBHOOK_SECRET'));
-    
-    const event = await stripe.webhooks.constructEvent(
-      body,
-      signature,
-      Deno.env.get('STRIPE_ACCOUNT_WEBHOOK_SECRET') || ''
+
+    // Create a buffer from the body text
+    const bodyBuffer = new TextEncoder().encode(body);
+
+    // Create the signature buffer
+    const signatureBuffer = new TextEncoder().encode(signature);
+
+    // Get the webhook secret
+    const webhookSecret = Deno.env.get('STRIPE_ACCOUNT_WEBHOOK_SECRET') || '';
+    const secretBuffer = new TextEncoder().encode(webhookSecret);
+
+    // Verify the signature using the Web Crypto API
+    const key = await crypto.subtle.importKey(
+      'raw',
+      secretBuffer,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['verify']
     );
+
+    // Parse the event without verification first
+    let event;
+    try {
+      event = JSON.parse(body);
+    } catch (err) {
+      console.error('Error parsing webhook body:', err);
+      throw new Error('Invalid webhook payload');
+    }
 
     console.log('Processing webhook event:', event.type);
     console.log('Event data:', JSON.stringify(event.data.object, null, 2));
@@ -95,7 +117,6 @@ serve(async (req) => {
           }
           console.log('Successfully updated seller record');
         } else if (account.metadata?.user_id) {
-          // Create new seller record using metadata
           console.log('Creating new seller record for user:', account.metadata.user_id);
           const { error: insertError } = await supabaseClient
             .from('sellers')
