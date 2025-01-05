@@ -63,25 +63,15 @@ serve(async (req) => {
         }
       );
 
-      // Get game details
-      const { data: game, error: gameError } = await supabaseAdmin
-        .from('game_codes')
-        .select('*')
-        .eq('id', gameId)
-        .single();
-
-      if (gameError) {
-        console.error('Error fetching game details:', gameError);
-        throw new Error(`Error fetching game details: ${gameError.message}`);
-      }
-
       // Update game code status to sold and set the buyer_id
       const { error: updateError } = await supabaseAdmin
         .from('game_codes')
         .update({ 
           status: 'sold',
-          payment_status: 'paid',
+          payment_status: 'pending_verification',
           buyer_id: buyerId,
+          buyer_email: buyerEmail,
+          payment_intent_id: session.payment_intent,
           updated_at: new Date().toISOString()
         })
         .eq('id', gameId);
@@ -91,47 +81,24 @@ serve(async (req) => {
         throw new Error(`Error updating game code: ${updateError.message}`);
       }
 
-      // Send confirmation email via Resend
-      if (buyerEmail) {
-        try {
-          const emailResponse = await fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${Deno.env.get('RESEND_API_KEY')}`,
-            },
-            body: JSON.stringify({
-              from: 'Game Store <onboarding@resend.dev>',
-              to: [buyerEmail],
-              subject: `Your Game Code Purchase: ${game.title}`,
-              html: `
-                <h1>Thank you for your purchase!</h1>
-                <p>Here is your game code for ${game.title}:</p>
-                <div style="background-color: #f4f4f4; padding: 15px; margin: 20px 0; border-radius: 5px;">
-                  <code style="font-size: 18px; font-weight: bold;">${game.code_text}</code>
-                </div>
-                <p>Platform: ${game.platform}</p>
-                ${game.region ? `<p>Region: ${game.region}</p>` : ''}
-                <p>Please redeem your code on the appropriate platform.</p>
-                <p>If you have any issues, please contact our support team.</p>
-              `,
-            }),
-          });
-
-          if (!emailResponse.ok) {
-            const errorText = await emailResponse.text();
-            console.error('Failed to send email:', errorText);
-            throw new Error('Failed to send confirmation email');
-          }
-
-          console.log('Confirmation email sent successfully');
-        } catch (emailError) {
-          console.error('Error sending confirmation email:', emailError);
-          // Don't throw here, as we don't want to roll back the purchase if email fails
+      // Call the confirm-code function to send the verification email
+      const confirmResponse = await fetch(
+        `${Deno.env.get('SUPABASE_URL')}/functions/v1/confirm-code`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          },
+          body: JSON.stringify({ gameId }),
         }
+      );
+
+      if (!confirmResponse.ok) {
+        console.error('Error calling confirm-code function:', await confirmResponse.text());
       }
 
-      console.log('Successfully processed checkout and updated game status to sold');
+      console.log('Successfully processed checkout and sent verification email');
     }
 
     return new Response(JSON.stringify({ received: true }), {
