@@ -55,7 +55,7 @@ serve(async (req) => {
           transfers: { requested: true },
         },
         metadata: {
-          user_id: user.id, // Store user ID in Stripe metadata
+          user_id: user.id,
         },
       });
       accountId = account.id;
@@ -75,11 +75,20 @@ serve(async (req) => {
       }
     }
 
+    // Get the origin and ensure it's HTTPS for live mode
+    const origin = req.headers.get('origin') || Deno.env.get('FRONTEND_URL') || '';
+    const baseUrl = origin.startsWith('http://localhost') ? origin : origin.replace('http://', 'https://');
+
+    console.log('Creating account link with URLs:', {
+      refresh: `${baseUrl}/profile`,
+      return: `${baseUrl}/profile?status=success`
+    });
+
     // Create account link for onboarding
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
-      refresh_url: `${req.headers.get('origin')}/profile`,
-      return_url: `${req.headers.get('origin')}/profile?status=success`,
+      refresh_url: `${baseUrl}/profile`,
+      return_url: `${baseUrl}/profile?status=success`,
       type: 'account_onboarding',
     });
 
