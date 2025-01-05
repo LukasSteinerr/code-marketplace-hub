@@ -43,6 +43,7 @@ serve(async (req) => {
       const session = event.data.object;
       const gameId = session.metadata.gameId;
       const buyerId = session.metadata.buyerId;
+      const buyerEmail = session.customer_details?.email;
 
       if (!gameId) {
         console.error('No gameId found in session metadata');
@@ -62,6 +63,18 @@ serve(async (req) => {
         }
       );
 
+      // Get game details
+      const { data: game, error: gameError } = await supabaseAdmin
+        .from('game_codes')
+        .select('*')
+        .eq('id', gameId)
+        .single();
+
+      if (gameError) {
+        console.error('Error fetching game details:', gameError);
+        throw new Error(`Error fetching game details: ${gameError.message}`);
+      }
+
       // Update game code status to sold and set the buyer_id
       const { error: updateError } = await supabaseAdmin
         .from('game_codes')
@@ -76,6 +89,46 @@ serve(async (req) => {
       if (updateError) {
         console.error('Error updating game code:', updateError);
         throw new Error(`Error updating game code: ${updateError.message}`);
+      }
+
+      // Send confirmation email via Resend
+      if (buyerEmail) {
+        try {
+          const emailResponse = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${Deno.env.get('RESEND_API_KEY')}`,
+            },
+            body: JSON.stringify({
+              from: 'Game Store <onboarding@resend.dev>',
+              to: [buyerEmail],
+              subject: `Your Game Code Purchase: ${game.title}`,
+              html: `
+                <h1>Thank you for your purchase!</h1>
+                <p>Here is your game code for ${game.title}:</p>
+                <div style="background-color: #f4f4f4; padding: 15px; margin: 20px 0; border-radius: 5px;">
+                  <code style="font-size: 18px; font-weight: bold;">${game.code_text}</code>
+                </div>
+                <p>Platform: ${game.platform}</p>
+                ${game.region ? `<p>Region: ${game.region}</p>` : ''}
+                <p>Please redeem your code on the appropriate platform.</p>
+                <p>If you have any issues, please contact our support team.</p>
+              `,
+            }),
+          });
+
+          if (!emailResponse.ok) {
+            const errorText = await emailResponse.text();
+            console.error('Failed to send email:', errorText);
+            throw new Error('Failed to send confirmation email');
+          }
+
+          console.log('Confirmation email sent successfully');
+        } catch (emailError) {
+          console.error('Error sending confirmation email:', emailError);
+          // Don't throw here, as we don't want to roll back the purchase if email fails
+        }
       }
 
       console.log('Successfully processed checkout and updated game status to sold');
