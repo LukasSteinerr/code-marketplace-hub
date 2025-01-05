@@ -56,6 +56,15 @@ serve(async (req) => {
     const amount = Math.round(game.price * 100); // Convert to cents
     const applicationFeeAmount = Math.round(amount * 0.10); // 10% platform fee
 
+    // Get the origin and ensure it's HTTPS for live mode
+    const origin = req.headers.get('origin') || Deno.env.get('FRONTEND_URL') || '';
+    const baseUrl = origin.startsWith('http://localhost') ? origin : origin.replace('http://', 'https://');
+
+    console.log('Creating checkout session with URLs:', {
+      success: `${baseUrl}/game/${gameId}?status=success`,
+      cancel: `${baseUrl}/game/${gameId}?status=cancelled`
+    });
+
     // Create a Checkout Session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -71,8 +80,8 @@ serve(async (req) => {
         quantity: 1,
       }],
       mode: 'payment',
-      success_url: `${req.headers.get('origin')}/game/${gameId}?status=success`,
-      cancel_url: `${req.headers.get('origin')}/game/${gameId}?status=cancelled`,
+      success_url: `${baseUrl}/game/${gameId}?status=success`,
+      cancel_url: `${baseUrl}/game/${gameId}?status=cancelled`,
       payment_intent_data: {
         application_fee_amount: applicationFeeAmount,
         transfer_data: {
