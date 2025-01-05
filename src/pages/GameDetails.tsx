@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -8,6 +8,7 @@ import { GameImage } from "@/components/game-details/GameImage";
 import { GameInfo } from "@/components/game-details/GameInfo";
 import { GameMetadata } from "@/components/game-details/GameMetadata";
 import { GameDescription } from "@/components/game-details/GameDescription";
+import { useEffect } from "react";
 
 type GameCode = Database['public']['Tables']['game_codes']['Row'];
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -18,9 +19,23 @@ export interface GameWithProfile extends GameCode {
 
 const GameDetails = () => {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { toast } = useToast();
 
-  const { data: game, isLoading } = useQuery<GameWithProfile>({
+  // Handle redirect after successful purchase
+  useEffect(() => {
+    const status = searchParams.get('status');
+    if (status === 'success') {
+      toast({
+        title: "Purchase successful!",
+        description: "You will receive the game code details shortly.",
+      });
+      navigate('/dashboard');
+    }
+  }, [searchParams, navigate, toast]);
+
+  const { data: game, isLoading } = useQuery({
     queryKey: ['game', id],
     queryFn: async () => {
       const { data: gameData, error } = await supabase
