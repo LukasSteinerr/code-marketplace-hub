@@ -29,6 +29,14 @@ const GameCard = ({ game }: GameCardProps) => {
     ? Math.round(((game.originalValue - game.price) / game.originalValue) * 100)
     : 0;
 
+  // Format price in USD
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(price);
+  };
+
   return (
     <Card className="group overflow-hidden transition-all duration-300 hover:translate-y-[-4px] hover:shadow-xl bg-white/5 backdrop-blur-sm border-white/10">
       <CardHeader className="p-0">
@@ -52,10 +60,10 @@ const GameCard = ({ game }: GameCardProps) => {
         </CardTitle>
         <div className="flex justify-between items-center mb-3">
           <div className="flex flex-col">
-            <span className="text-2xl font-bold text-primary">${game.price}</span>
+            <span className="text-2xl font-bold text-primary">{formatPrice(game.price)}</span>
             {game.originalValue && (
               <span className="text-sm text-white/40 line-through">
-                ${game.originalValue}
+                {formatPrice(game.originalValue)}
               </span>
             )}
           </div>

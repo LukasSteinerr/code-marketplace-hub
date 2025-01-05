@@ -12,16 +12,24 @@ export const GameInfo = ({ game, onBuyNow }: GameInfoProps) => {
     ? Math.round(((game.original_value - game.price) / game.original_value) * 100)
     : 0;
 
+  // Format price in USD
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(price);
+  };
+
   return (
     <div className="space-y-4">
       <h1 className="text-3xl font-bold">{game.title}</h1>
       
       <div className="flex items-center gap-4">
         <div className="flex flex-col">
-          <span className="text-3xl font-bold text-primary">${game.price}</span>
+          <span className="text-3xl font-bold text-primary">{formatPrice(game.price)}</span>
           {game.original_value && (
             <span className="text-sm text-muted-foreground line-through">
-              ${game.original_value}
+              {formatPrice(game.original_value)}
             </span>
           )}
         </div>
