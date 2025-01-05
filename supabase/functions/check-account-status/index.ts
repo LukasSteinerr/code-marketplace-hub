@@ -26,7 +26,7 @@ serve(async (req) => {
       throw new Error('Not authenticated');
     }
 
-    // Get seller data
+    // Get seller data using maybeSingle() instead of single()
     const { data: sellerData, error: sellerError } = await supabaseClient
       .from('sellers')
       .select('stripe_account_id, status')
@@ -38,9 +38,21 @@ serve(async (req) => {
       throw sellerError;
     }
 
-    if (!sellerData?.stripe_account_id) {
+    // If no seller record exists, return pending status
+    if (!sellerData) {
       return new Response(
-        JSON.stringify({ status: sellerData?.status || 'pending' }),
+        JSON.stringify({ status: 'pending' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    }
+
+    // If no Stripe account ID, return current status
+    if (!sellerData.stripe_account_id) {
+      return new Response(
+        JSON.stringify({ status: sellerData.status || 'pending' }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
