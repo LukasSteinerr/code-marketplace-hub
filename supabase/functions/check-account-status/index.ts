@@ -20,14 +20,14 @@ serve(async (req) => {
 
     const authHeader = req.headers.get('Authorization')!;
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user } } = await supabaseClient.auth.getUser(token);
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
 
-    if (!user) {
+    if (userError || !user) {
       throw new Error('Not authenticated');
     }
 
     // Get seller data
-    const { data: seller, error: sellerError } = await supabaseClient
+    const { data: sellerData, error: sellerError } = await supabaseClient
       .from('sellers')
       .select('stripe_account_id, status')
       .eq('id', user.id)
@@ -38,9 +38,9 @@ serve(async (req) => {
       throw sellerError;
     }
 
-    if (!seller?.stripe_account_id) {
+    if (!sellerData?.stripe_account_id) {
       return new Response(
-        JSON.stringify({ status: seller?.status || 'pending' }),
+        JSON.stringify({ status: sellerData?.status || 'pending' }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
@@ -53,8 +53,8 @@ serve(async (req) => {
     });
 
     try {
-      // Get Stripe account status
-      const account = await stripe.accounts.retrieve(seller.stripe_account_id);
+      // Try to retrieve the account
+      const account = await stripe.accounts.retrieve(sellerData.stripe_account_id);
       console.log('Stripe account status:', {
         charges_enabled: account.charges_enabled,
         details_submitted: account.details_submitted,
@@ -84,8 +84,6 @@ serve(async (req) => {
         throw updateError;
       }
 
-      console.log('Successfully updated seller status to:', status);
-
       return new Response(
         JSON.stringify({ status }),
         { 
@@ -93,12 +91,14 @@ serve(async (req) => {
           status: 200,
         }
       );
+
     } catch (stripeError: any) {
       console.error('Stripe error:', stripeError);
       
       // If the account is invalid or not accessible, reset the seller status
       if (stripeError.code === 'account_invalid') {
-        const { error: updateError } = await supabaseClient
+        console.log('Resetting invalid seller account...');
+        const { error: resetError } = await supabaseClient
           .from('sellers')
           .update({ 
             status: 'pending',
@@ -107,9 +107,9 @@ serve(async (req) => {
           })
           .eq('id', user.id);
 
-        if (updateError) {
-          console.error('Error resetting seller status:', updateError);
-          throw updateError;
+        if (resetError) {
+          console.error('Error resetting seller:', resetError);
+          throw resetError;
         }
 
         return new Response(
@@ -126,7 +126,8 @@ serve(async (req) => {
 
       throw stripeError;
     }
-  } catch (error) {
+
+  } catch (error: any) {
     console.error('Error checking account status:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
