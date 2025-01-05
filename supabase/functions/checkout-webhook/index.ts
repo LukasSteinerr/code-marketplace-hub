@@ -61,11 +61,12 @@ serve(async (req) => {
         }
       );
 
-      // Update game code status to paid
+      // Update game code status to sold and payment status to paid
       const { error: updateError } = await supabaseAdmin
         .from('game_codes')
         .update({ 
           payment_status: 'paid',
+          status: 'sold',
           updated_at: new Date().toISOString()
         })
         .eq('id', gameId);
@@ -75,7 +76,7 @@ serve(async (req) => {
         throw new Error(`Error updating game code: ${updateError.message}`);
       }
 
-      console.log('Successfully processed payment');
+      console.log('Successfully processed payment and updated game status');
     }
 
     return new Response(JSON.stringify({ received: true }), {
