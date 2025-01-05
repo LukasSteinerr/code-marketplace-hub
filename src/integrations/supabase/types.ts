@@ -11,6 +11,7 @@ export type Database = {
     Tables: {
       game_codes: {
         Row: {
+          buyer_email: string | null
           buyer_id: string | null
           category: Database["public"]["Enums"]["game_category"]
           code_text: string
@@ -30,6 +31,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          buyer_email?: string | null
           buyer_id?: string | null
           category?: Database["public"]["Enums"]["game_category"]
           code_text: string
@@ -49,6 +51,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          buyer_email?: string | null
           buyer_id?: string | null
           category?: Database["public"]["Enums"]["game_category"]
           code_text?: string
