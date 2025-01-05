@@ -39,17 +39,7 @@ serve(async (req) => {
 
     console.log('Starting deletion process for user:', user.id);
 
-    // Delete seller record first (if exists)
-    const { error: sellerError } = await supabaseAdmin
-      .from('sellers')
-      .delete()
-      .eq('id', user.id);
-
-    if (sellerError) {
-      console.error('Error deleting seller record:', sellerError);
-    }
-
-    // Delete game codes
+    // Delete game codes first (they reference both sellers and profiles)
     const { error: gameCodesError } = await supabaseAdmin
       .from('game_codes')
       .delete()
@@ -57,6 +47,18 @@ serve(async (req) => {
 
     if (gameCodesError) {
       console.error('Error deleting game codes:', gameCodesError);
+      throw gameCodesError;
+    }
+
+    // Delete seller record (it references profiles)
+    const { error: sellerError } = await supabaseAdmin
+      .from('sellers')
+      .delete()
+      .eq('id', user.id);
+
+    if (sellerError) {
+      console.error('Error deleting seller record:', sellerError);
+      throw sellerError;
     }
 
     // Delete profile
@@ -67,6 +69,7 @@ serve(async (req) => {
 
     if (profileError) {
       console.error('Error deleting profile:', profileError);
+      throw profileError;
     }
 
     // Finally, delete the user from auth.users
