@@ -49,19 +49,12 @@ const Profile = () => {
 
         setSellerStatus(sellerData?.status || null);
 
-        // Cleanup subscription on unmount
         return () => {
           subscription.unsubscribe();
         };
       } catch (error: any) {
         console.error('Profile auth error:', error);
-        await supabase.auth.signOut();
-        toast({
-          title: "Session expired",
-          description: "Please sign in again.",
-          variant: "destructive",
-        });
-        navigate("/login");
+        handleLogout();
       }
     };
     
@@ -70,32 +63,29 @@ const Profile = () => {
 
   const handleLogout = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        if (error.status === 403) {
-          toast({
-            title: "Already logged out",
-            description: "Your session has expired. Redirecting to login...",
-          });
-          await supabase.auth.signOut({ scope: 'local' });
-          navigate("/login");
-          return;
-        }
-        throw error;
-      }
+      // Try local logout first
+      await supabase.auth.signOut({ scope: 'local' });
       
+      // Then try global logout, but don't throw on error
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (globalError) {
+        console.warn('Global logout failed:', globalError);
+      }
+
       toast({
         title: "Logged out successfully",
         description: "You have been logged out of your account.",
       });
+      
+      // Always navigate to login
       navigate("/login");
     } catch (error: any) {
       console.error("Logout error:", error);
-      await supabase.auth.signOut({ scope: 'local' });
+      // Even if logout fails, clear local state and redirect
       toast({
-        title: "Error during logout",
-        description: "Please try again or refresh the page.",
-        variant: "destructive",
+        title: "Session expired",
+        description: "Your session has expired. Please sign in again.",
       });
       navigate("/login");
     }

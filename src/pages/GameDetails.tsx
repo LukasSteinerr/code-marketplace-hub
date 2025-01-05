@@ -39,6 +39,59 @@ const GameDetails = () => {
     }
   });
 
+  const handleBuyNow = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: "Authentication required",
+          description: "Please sign in to purchase game codes",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // First check if seller is properly configured
+      const { data: sellerData, error: sellerError } = await supabase
+        .from('sellers')
+        .select('status, stripe_account_id')
+        .eq('id', game?.seller_id)
+        .single();
+
+      if (sellerError) throw sellerError;
+
+      if (!sellerData?.stripe_account_id || sellerData.status !== 'active') {
+        toast({
+          title: "Purchase unavailable",
+          description: "This seller is not yet configured to accept payments. Please try another listing.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: { gameId: id }
+      });
+
+      if (error) {
+        console.error('Checkout error:', error);
+        throw error;
+      }
+
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (error: any) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to initiate checkout. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background p-6">
@@ -64,38 +117,6 @@ const GameDetails = () => {
       </div>
     );
   }
-
-  const handleBuyNow = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        toast({
-          title: "Authentication required",
-          description: "Please sign in to purchase game codes",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: { gameId: id }
-      });
-
-      if (error) throw error;
-
-      if (data?.url) {
-        window.location.href = data.url;
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to initiate checkout. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
 
   const discount = game.original_value 
     ? Math.round(((game.original_value - game.price) / game.original_value) * 100)
