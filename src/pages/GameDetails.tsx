@@ -9,6 +9,8 @@ import { GameInfo } from "@/components/game-details/GameInfo";
 import { GameMetadata } from "@/components/game-details/GameMetadata";
 import { GameDescription } from "@/components/game-details/GameDescription";
 import { useEffect } from "react";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 type GameCode = Database['public']['Tables']['game_codes']['Row'];
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -151,6 +153,13 @@ const GameDetails = () => {
           <div className="space-y-6">
             <GameMetadata game={game} />
             <GameDescription description={game.description} />
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Purchase unavailable</AlertTitle>
+              <AlertDescription>
+                This seller is not yet configured to accept payments. Please try another listing.
+              </AlertDescription>
+            </Alert>
           </div>
         </div>
       </div>
