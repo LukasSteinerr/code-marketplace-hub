@@ -66,7 +66,7 @@ const GameDetails = () => {
         return;
       }
 
-      // First check if seller is properly configured
+      // Check if seller exists and is properly configured
       const { data: sellerData, error: sellerError } = await supabase
         .from('sellers')
         .select('status, stripe_account_id')
@@ -135,10 +135,6 @@ const GameDetails = () => {
     );
   }
 
-  const discount = game.original_value 
-    ? Math.round(((game.original_value - game.price) / game.original_value) * 100)
-    : 0;
-
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-4xl mx-auto">
@@ -146,7 +142,9 @@ const GameDetails = () => {
 
         <div className="grid md:grid-cols-2 gap-8">
           <div className="space-y-6">
-            <GameImage title={game.title} discount={discount} />
+            <GameImage title={game.title} discount={game.original_value 
+              ? Math.round(((game.original_value - game.price) / game.original_value) * 100)
+              : 0} />
             <GameInfo game={game} onBuyNow={handleBuyNow} />
           </div>
 
