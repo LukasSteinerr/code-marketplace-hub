@@ -153,13 +153,6 @@ const GameDetails = () => {
           <div className="space-y-6">
             <GameMetadata game={game} />
             <GameDescription description={game.description} />
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Purchase unavailable</AlertTitle>
-              <AlertDescription>
-                This seller is not yet configured to accept payments. Please try another listing.
-              </AlertDescription>
-            </Alert>
           </div>
         </div>
       </div>
