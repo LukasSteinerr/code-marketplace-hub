@@ -13,13 +13,28 @@ const Login = () => {
   useEffect(() => {
     // Check if there's an active session first
     const checkAndClearSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Session check error:', sessionError);
+        toast({
+          title: "Session Error",
+          description: "There was an error checking your session. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
       
       if (session) {
         try {
           const { error } = await supabase.auth.signOut();
           if (error) {
             console.error('Error during sign out:', error);
+            toast({
+              title: "Sign Out Error",
+              description: "There was an error signing out. Please try again.",
+              variant: "destructive",
+            });
           }
         } catch (err) {
           console.error('Error during sign out:', err);
@@ -63,25 +78,21 @@ const Login = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/dashboard`
+          redirectTo: window.location.origin + '/dashboard',
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         }
       });
       
       if (error) {
         console.error('Error signing in with Google:', error);
-        if (error.message.includes('user_already_exists')) {
-          toast({
-            title: "Account Exists",
-            description: "An account with this email already exists. Please sign in instead.",
-            variant: "default",
-          });
-        } else {
-          toast({
-            title: "Sign In Error",
-            description: error.message,
-            variant: "destructive",
-          });
-        }
+        toast({
+          title: "Sign In Error",
+          description: error.message,
+          variant: "destructive",
+        });
       }
     } catch (err) {
       console.error('Error during Google sign in:', err);
@@ -163,6 +174,7 @@ const Login = () => {
               },
             }}
             providers={[]}
+            redirectTo={window.location.origin + '/dashboard'}
             localization={{
               variables: {
                 sign_up: {
