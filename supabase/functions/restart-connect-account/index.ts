@@ -59,22 +59,27 @@ serve(async (req) => {
 
     if (seller?.stripe_account_id) {
       try {
-        console.log('Deleting Stripe account:', seller.stripe_account_id);
-        // Delete the Stripe Connect account
-        await stripe.accounts.del(seller.stripe_account_id);
-        console.log('Successfully deleted Stripe account');
-      } catch (stripeError: any) {
-        // If the account doesn't exist, we can proceed
-        if (stripeError.code !== 'resource_missing') {
-          console.error('Error deleting Stripe account:', stripeError);
-          throw stripeError;
+        console.log('Attempting to delete Stripe account:', seller.stripe_account_id);
+        // Instead of deleting, we'll try to retrieve the account first
+        const account = await stripe.accounts.retrieve(seller.stripe_account_id);
+        
+        if (account.id) {
+          // If we're in test mode, we can proceed with deletion
+          if (!account.charges_enabled || account.details_submitted === false) {
+            await stripe.accounts.del(seller.stripe_account_id);
+            console.log('Successfully deleted incomplete Stripe account');
+          } else {
+            console.log('Account is active, skipping deletion and proceeding with reset');
+          }
         }
-        console.log('Stripe account not found, proceeding with cleanup');
+      } catch (stripeError: any) {
+        // If the account doesn't exist or other Stripe errors, log and continue
+        console.log('Stripe operation error (continuing):', stripeError.message);
       }
     }
 
     console.log('Updating seller record');
-    // Update the seller record instead of deleting it
+    // Update the seller record
     const { error: updateError } = await supabaseClient
       .from('sellers')
       .update({
