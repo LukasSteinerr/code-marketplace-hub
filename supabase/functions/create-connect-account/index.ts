@@ -13,22 +13,21 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Starting create-connect-account function');
+    
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
     );
 
     const authHeader = req.headers.get('Authorization')!;
     const token = authHeader.replace('Bearer ', '');
+    
+    console.log('Verifying user authentication');
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
 
     if (userError || !user) {
+      console.error('Authentication error:', userError);
       throw new Error('Not authenticated');
     }
 
@@ -37,6 +36,7 @@ serve(async (req) => {
     });
 
     // First check if seller exists and get their current status
+    console.log('Checking existing seller record for user:', user.id);
     const { data: existingSeller, error: sellerError } = await supabaseClient
       .from('sellers')
       .select('*')
@@ -44,6 +44,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (sellerError) {
+      console.error('Error fetching seller:', sellerError);
       throw sellerError;
     }
 
@@ -52,6 +53,7 @@ serve(async (req) => {
     if (!accountId) {
       // Try to find existing Stripe account by email
       try {
+        console.log('Looking for existing Stripe account by email');
         const accounts = await stripe.accounts.list({
           limit: 1,
           email: user.email,
@@ -66,14 +68,14 @@ serve(async (req) => {
       }
 
       if (!accountId) {
-        // Create new Connect account with expanded capabilities
+        console.log('Creating new Stripe Connect account');
+        // Create new Connect account with basic capabilities
         const account = await stripe.accounts.create({
           type: 'express',
           email: user.email,
           capabilities: {
             card_payments: { requested: true },
             transfers: { requested: true },
-            tax_reporting_us_1099_k: { requested: true },
           },
           business_profile: {
             support_email: user.email,
@@ -97,7 +99,7 @@ serve(async (req) => {
       }
 
       if (existingSeller) {
-        // Update existing seller record
+        console.log('Updating existing seller record with new Stripe account');
         const { error: updateError } = await supabaseClient
           .from('sellers')
           .update({
@@ -112,7 +114,7 @@ serve(async (req) => {
           throw updateError;
         }
       } else {
-        // Create new seller record
+        console.log('Creating new seller record');
         const { error: insertError } = await supabaseClient
           .from('sellers')
           .insert({
@@ -128,9 +130,7 @@ serve(async (req) => {
       }
     }
 
-    // Get the base URL ensuring HTTPS for non-localhost
-    const frontendUrl = Deno.env.get('FRONTEND_URL') || '';
-    const origin = req.headers.get('origin') || frontendUrl;
+    const origin = req.headers.get('origin') || Deno.env.get('FRONTEND_URL') || '';
     const baseUrl = origin.includes('localhost') ? origin : origin.replace(/^http:/, 'https:');
 
     console.log('Creating account link with URLs:', {
@@ -138,7 +138,6 @@ serve(async (req) => {
       return: `${baseUrl}/profile?status=success`
     });
 
-    // Create account link for onboarding
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
       refresh_url: `${baseUrl}/profile`,
@@ -153,8 +152,8 @@ serve(async (req) => {
         status: 200,
       }
     );
-  } catch (error) {
-    console.error('Error:', error);
+  } catch (error: any) {
+    console.error('Error in create-connect-account:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
