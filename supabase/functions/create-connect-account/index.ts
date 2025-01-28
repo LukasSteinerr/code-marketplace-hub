@@ -58,7 +58,6 @@ serve(async (req) => {
         });
 
         if (accounts.data.length > 0) {
-          // Found existing account with matching email
           accountId = accounts.data[0].id;
           console.log('Found existing Stripe account by email:', accountId);
         }
@@ -67,20 +66,30 @@ serve(async (req) => {
       }
 
       if (!accountId) {
-        // Create new Connect account if no existing account found
+        // Create new Connect account with expanded capabilities
         const account = await stripe.accounts.create({
           type: 'express',
           email: user.email,
           capabilities: {
             card_payments: { requested: true },
             transfers: { requested: true },
+            tax_reporting_us_1099_k: { requested: true },
+          },
+          business_profile: {
+            support_email: user.email,
+            mcc: '5734', // Computer Software Stores
+            url: Deno.env.get('FRONTEND_URL'),
           },
           metadata: {
             user_id: user.id,
-            user_email: user.email, // Store email in metadata for reference
+            user_email: user.email,
           },
-          business_profile: {
-            support_email: user.email, // Set support email
+          settings: {
+            payouts: {
+              schedule: {
+                interval: 'manual',
+              },
+            },
           },
         });
         accountId = account.id;
