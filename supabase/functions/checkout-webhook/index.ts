@@ -64,7 +64,7 @@ serve(async (req) => {
         }
       );
 
-      // First, check if the game is still available and not already sold
+      // First, check if the game is still available
       const { data: gameCheck, error: checkError } = await supabaseAdmin
         .from('game_codes')
         .select('status')
