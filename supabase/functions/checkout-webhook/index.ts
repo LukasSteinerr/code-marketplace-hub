@@ -17,121 +17,126 @@ serve(async (req) => {
     const signature = req.headers.get('stripe-signature');
 
     if (!signature) {
-      console.error('No stripe signature found');
+      console.error('No stripe signature found in headers:', Object.fromEntries(req.headers));
       throw new Error('No stripe signature found');
     }
 
+    console.log('Stripe signature:', signature);
+
+    const webhookSecret = Deno.env.get('STRIPE_CHECKOUT_WEBHOOK_SECRET');
+    if (!webhookSecret) {
+      console.error('Webhook secret not found in environment variables');
+      throw new Error('Webhook secret not found');
+    }
+
+    console.log('Webhook secret found, reading request body...');
     const body = await req.text();
-    console.log('Webhook raw body:', body);
+    console.log('Request body length:', body.length);
+    console.log('Request body preview:', body.substring(0, 100) + '...');
 
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
       apiVersion: '2023-10-16',
     });
 
-    const webhookSecret = Deno.env.get('STRIPE_CHECKOUT_WEBHOOK_SECRET');
-    if (!webhookSecret) {
-      console.error('Webhook secret not found');
-      throw new Error('Webhook secret not found');
-    }
+    console.log('Attempting to construct Stripe event...');
+    try {
+      const event = await stripe.webhooks.constructEventAsync(
+        body,
+        signature,
+        webhookSecret
+      );
 
-    console.log('Constructing Stripe event with signature:', signature);
-    const event = await stripe.webhooks.constructEventAsync(
-      body,
-      signature,
-      webhookSecret
-    );
+      console.log('Successfully constructed Stripe event:', event.type);
 
-    console.log('Processing webhook event:', event.type);
+      if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
+        const gameId = session.metadata?.gameId;
+        const buyerId = session.metadata?.buyerId;
+        const buyerEmail = session.customer_details?.email;
 
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object;
-      const gameId = session.metadata?.gameId;
-      const buyerId = session.metadata?.buyerId;
-      const buyerEmail = session.customer_details?.email;
+        if (!gameId) {
+          console.error('No gameId found in session metadata:', session.metadata);
+          throw new Error('No gameId found in session metadata');
+        }
 
-      if (!gameId) {
-        console.error('No gameId found in session metadata');
-        throw new Error('No gameId found in session metadata');
-      }
+        console.log('Processing successful checkout for game:', gameId);
 
-      console.log('Processing successful checkout for game:', gameId);
-
-      // Initialize Supabase client with service role key for full access
-      const supabaseAdmin = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-        {
-          auth: {
-            autoRefreshToken: false,
-            persistSession: false,
+        const supabaseAdmin = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+          {
+            auth: {
+              autoRefreshToken: false,
+              persistSession: false,
+            }
           }
+        );
+
+        const { data: gameCheck, error: checkError } = await supabaseAdmin
+          .from('game_codes')
+          .select('status')
+          .eq('id', gameId)
+          .single();
+
+        if (checkError) {
+          console.error('Error checking game status:', checkError);
+          throw new Error(`Error checking game status: ${checkError.message}`);
         }
-      );
 
-      // First, check if the game is still available
-      const { data: gameCheck, error: checkError } = await supabaseAdmin
-        .from('game_codes')
-        .select('status')
-        .eq('id', gameId)
-        .single();
+        console.log('Current game status:', gameCheck?.status);
 
-      if (checkError) {
-        console.error('Error checking game status:', checkError);
-        throw new Error(`Error checking game status: ${checkError.message}`);
-      }
-
-      console.log('Current game status:', gameCheck?.status);
-
-      if (!gameCheck || gameCheck.status !== 'available') {
-        console.error('Game is no longer available:', gameId);
-        throw new Error('Game is no longer available');
-      }
-
-      // Update game code status to sold and set the buyer information
-      const { error: updateError } = await supabaseAdmin
-        .from('game_codes')
-        .update({ 
-          status: 'sold',
-          payment_status: 'completed',
-          buyer_id: buyerId,
-          buyer_email: buyerEmail,
-          payment_intent_id: session.payment_intent,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', gameId)
-        .eq('status', 'available'); // Ensure we only update if it's still available
-
-      if (updateError) {
-        console.error('Error updating game code:', updateError);
-        throw new Error(`Error updating game code: ${updateError.message}`);
-      }
-
-      console.log('Successfully updated game status to sold');
-
-      // Call the confirm-code function to send the verification email
-      const confirmResponse = await fetch(
-        `${Deno.env.get('SUPABASE_URL')}/functions/v1/confirm-code`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-          },
-          body: JSON.stringify({ gameId }),
+        if (!gameCheck || gameCheck.status !== 'available') {
+          console.error('Game is no longer available:', gameId);
+          throw new Error('Game is no longer available');
         }
-      );
 
-      if (!confirmResponse.ok) {
-        console.error('Error calling confirm-code function:', await confirmResponse.text());
+        const { error: updateError } = await supabaseAdmin
+          .from('game_codes')
+          .update({ 
+            status: 'sold',
+            payment_status: 'completed',
+            buyer_id: buyerId,
+            buyer_email: buyerEmail,
+            payment_intent_id: session.payment_intent,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', gameId)
+          .eq('status', 'available');
+
+        if (updateError) {
+          console.error('Error updating game code:', updateError);
+          throw new Error(`Error updating game code: ${updateError.message}`);
+        }
+
+        console.log('Successfully updated game status to sold');
+
+        const confirmResponse = await fetch(
+          `${Deno.env.get('SUPABASE_URL')}/functions/v1/confirm-code`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            },
+            body: JSON.stringify({ gameId }),
+          }
+        );
+
+        if (!confirmResponse.ok) {
+          console.error('Error calling confirm-code function:', await confirmResponse.text());
+        }
+
+        console.log('Successfully processed checkout and sent verification email');
       }
 
-      console.log('Successfully processed checkout and sent verification email');
+      return new Response(JSON.stringify({ received: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    } catch (stripeError) {
+      console.error('Stripe webhook construction error:', stripeError);
+      throw stripeError;
     }
-
-    return new Response(JSON.stringify({ received: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    });
   } catch (error) {
     console.error('Webhook error:', error);
     return new Response(
