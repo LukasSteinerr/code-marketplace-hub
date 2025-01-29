@@ -27,11 +27,9 @@ serve(async (req) => {
       throw new Error('Webhook secret not found');
     }
 
-    // Get the raw body as a Uint8Array
-    const rawBody = await req.arrayBuffer();
-    const bodyText = new TextDecoder().decode(rawBody);
-    
-    console.log('Request body length:', bodyText.length);
+    // Get the raw body
+    const rawBody = await req.text();
+    console.log('Request body length:', rawBody.length);
 
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
       apiVersion: '2023-10-16',
@@ -41,9 +39,11 @@ serve(async (req) => {
     let event;
     try {
       event = await stripe.webhooks.constructEventAsync(
-        bodyText,
+        rawBody,
         signature,
-        webhookSecret
+        webhookSecret,
+        undefined,
+        Stripe.createSubtleCryptoProvider()
       );
       console.log('Successfully constructed Stripe event:', event.type);
     } catch (err) {
