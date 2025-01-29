@@ -85,7 +85,7 @@ serve(async (req) => {
         .from('game_codes')
         .update({ 
           status: 'sold',
-          payment_status: 'pending_verification',
+          payment_status: 'completed',
           buyer_id: buyerId,
           buyer_email: buyerEmail,
           payment_intent_id: session.payment_intent,
