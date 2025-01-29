@@ -74,7 +74,8 @@ serve(async (req) => {
           payment_intent_id: session.payment_intent,
           updated_at: new Date().toISOString()
         })
-        .eq('id', gameId);
+        .eq('id', gameId)
+        .eq('status', 'available'); // Only update if the code is still available
 
       if (updateError) {
         console.error('Error updating game code:', updateError);
