@@ -14,6 +14,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -22,23 +23,31 @@ serve(async (req) => {
     // Get the stripe signature from headers
     const signature = req.headers.get('stripe-signature');
     if (!signature) {
+      console.error('No stripe signature found in headers');
       throw new Error('No stripe signature found');
     }
 
-    // Get the raw request body as text
+    // Get the raw request body
     const rawBody = await req.text();
+    console.log('Raw body received:', rawBody.substring(0, 100) + '...'); // Log first 100 chars for debugging
 
-    // Construct the event using the raw body and signature
-    const event = await stripe.webhooks.constructEventAsync(
-      rawBody,
-      signature,
-      Deno.env.get('STRIPE_CHECKOUT_WEBHOOK_SECRET') || '',
-      undefined,
-      Stripe.createSubtleCryptoProvider()
-    );
+    // Verify and construct the event
+    let event;
+    try {
+      event = await stripe.webhooks.constructEventAsync(
+        rawBody,
+        signature,
+        Deno.env.get('STRIPE_CHECKOUT_WEBHOOK_SECRET') || '',
+        undefined,
+        Stripe.createSubtleCryptoProvider()
+      );
+    } catch (err) {
+      console.error('Error constructing webhook event:', err);
+      throw new Error(`Webhook Error: ${err.message}`);
+    }
 
     console.log('Event type:', event.type);
-    console.log('Event data:', JSON.stringify(event.data));
+    console.log('Event data:', JSON.stringify(event.data.object));
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
@@ -48,6 +57,8 @@ serve(async (req) => {
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
       );
+
+      console.log('Updating game code:', session.metadata.gameId);
 
       // Update game code status and buyer information
       const { error: updateError } = await supabaseClient
@@ -65,6 +76,8 @@ serve(async (req) => {
         throw updateError;
       }
 
+      console.log('Successfully updated game code');
+
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
@@ -81,7 +94,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         error: error.message,
-        type: 'w'
+        type: 'webhook_error'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
