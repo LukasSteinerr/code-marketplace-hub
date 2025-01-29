@@ -1,88 +1,146 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import Stripe from 'https://esm.sh/stripe@13.10.0?target=deno'
-
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-  apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetchHttpClient(),
-});
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import Stripe from 'https://esm.sh/stripe@14.21.0';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, stripe-signature',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Get the stripe signature from headers
+    console.log('Received webhook request');
     const signature = req.headers.get('stripe-signature');
+
     if (!signature) {
+      console.error('No stripe signature found in headers:', Object.fromEntries(req.headers));
       throw new Error('No stripe signature found');
     }
 
-    // Get the raw request body as text
-    const rawBody = await req.text();
+    console.log('Stripe signature:', signature);
 
-    // Construct the event using the raw body and signature
-    const event = await stripe.webhooks.constructEventAsync(
-      rawBody,
-      signature,
-      Deno.env.get('STRIPE_CHECKOUT_WEBHOOK_SECRET') || '',
-      undefined,
-      Stripe.createSubtleCryptoProvider()
-    );
+    const webhookSecret = Deno.env.get('STRIPE_CHECKOUT_WEBHOOK_SECRET');
+    if (!webhookSecret) {
+      console.error('Webhook secret not found in environment variables');
+      throw new Error('Webhook secret not found');
+    }
 
-    console.log('Event type:', event.type);
-    console.log('Event data:', JSON.stringify(event.data));
+    console.log('Webhook secret found, reading request body...');
+    const body = await req.text();
+    console.log('Request body length:', body.length);
+    console.log('Request body preview:', body.substring(0, 100) + '...');
 
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object;
-      
-      // Create Supabase client
-      const supabaseClient = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
+      apiVersion: '2023-10-16',
+    });
+
+    console.log('Attempting to construct Stripe event...');
+    try {
+      const event = await stripe.webhooks.constructEventAsync(
+        body,
+        signature,
+        webhookSecret
       );
 
-      // Update game code status and buyer information
-      const { error: updateError } = await supabaseClient
-        .from('game_codes')
-        .update({
-          status: 'sold',
-          payment_status: 'completed',
-          payment_intent_id: session.payment_intent,
-          buyer_email: session.customer_details.email,
-        })
-        .eq('id', session.metadata.gameId);
+      console.log('Successfully constructed Stripe event:', event.type);
 
-      if (updateError) {
-        console.error('Error updating game code:', updateError);
-        throw updateError;
+      if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
+        const gameId = session.metadata?.gameId;
+        const buyerId = session.metadata?.buyerId;
+        const buyerEmail = session.customer_details?.email;
+
+        if (!gameId) {
+          console.error('No gameId found in session metadata:', session.metadata);
+          throw new Error('No gameId found in session metadata');
+        }
+
+        console.log('Processing successful checkout for game:', gameId);
+
+        const supabaseAdmin = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+          {
+            auth: {
+              autoRefreshToken: false,
+              persistSession: false,
+            }
+          }
+        );
+
+        const { data: gameCheck, error: checkError } = await supabaseAdmin
+          .from('game_codes')
+          .select('status')
+          .eq('id', gameId)
+          .single();
+
+        if (checkError) {
+          console.error('Error checking game status:', checkError);
+          throw new Error(`Error checking game status: ${checkError.message}`);
+        }
+
+        console.log('Current game status:', gameCheck?.status);
+
+        if (!gameCheck || gameCheck.status !== 'available') {
+          console.error('Game is no longer available:', gameId);
+          throw new Error('Game is no longer available');
+        }
+
+        const { error: updateError } = await supabaseAdmin
+          .from('game_codes')
+          .update({ 
+            status: 'sold',
+            payment_status: 'completed',
+            buyer_id: buyerId,
+            buyer_email: buyerEmail,
+            payment_intent_id: session.payment_intent,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', gameId)
+          .eq('status', 'available');
+
+        if (updateError) {
+          console.error('Error updating game code:', updateError);
+          throw new Error(`Error updating game code: ${updateError.message}`);
+        }
+
+        console.log('Successfully updated game status to sold');
+
+        const confirmResponse = await fetch(
+          `${Deno.env.get('SUPABASE_URL')}/functions/v1/confirm-code`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            },
+            body: JSON.stringify({ gameId }),
+          }
+        );
+
+        if (!confirmResponse.ok) {
+          console.error('Error calling confirm-code function:', await confirmResponse.text());
+        }
+
+        console.log('Successfully processed checkout and sent verification email');
       }
 
-      return new Response(JSON.stringify({ success: true }), {
+      return new Response(JSON.stringify({ received: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
+    } catch (stripeError) {
+      console.error('Stripe webhook construction error:', stripeError);
+      throw stripeError;
     }
-
-    return new Response(JSON.stringify({ received: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    });
-
   } catch (error) {
-    console.error('Error processing webhook:', error);
+    console.error('Webhook error:', error);
     return new Response(
-      JSON.stringify({
-        error: error.message,
-        type: 'w'
-      }),
+      JSON.stringify({ error: error.message }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
