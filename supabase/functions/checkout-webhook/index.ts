@@ -4,7 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, stripe-signature',
 };
 
 serve(async (req) => {
@@ -17,12 +17,9 @@ serve(async (req) => {
     const signature = req.headers.get('stripe-signature');
 
     if (!signature) {
-      console.error('No stripe signature found in headers. All headers:', 
-        Object.fromEntries(req.headers.entries()));
+      console.error('No stripe signature found in headers');
       throw new Error('No stripe signature found');
     }
-
-    console.log('Stripe signature:', signature);
 
     const webhookSecret = Deno.env.get('STRIPE_CHECKOUT_WEBHOOK_SECRET');
     if (!webhookSecret) {
@@ -30,11 +27,11 @@ serve(async (req) => {
       throw new Error('Webhook secret not found');
     }
 
-    console.log('Webhook secret found (first 4 chars):', webhookSecret.substring(0, 4));
-
-    const rawBody = await req.text();
-    console.log('Request body length:', rawBody.length);
-    console.log('Request body preview:', rawBody.substring(0, 100));
+    // Get the raw body as a Uint8Array
+    const rawBody = await req.arrayBuffer();
+    const bodyText = new TextDecoder().decode(rawBody);
+    
+    console.log('Request body length:', bodyText.length);
 
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
       apiVersion: '2023-10-16',
@@ -43,19 +40,14 @@ serve(async (req) => {
     console.log('Attempting to construct Stripe event...');
     let event;
     try {
-      event = await stripe.webhooks.constructEventAsync(
-        rawBody,
+      event = stripe.webhooks.constructEvent(
+        bodyText,
         signature,
         webhookSecret
       );
       console.log('Successfully constructed Stripe event:', event.type);
     } catch (err) {
       console.error('Error constructing Stripe event:', err);
-      console.error('Signature verification failed. Details:', {
-        signatureHeader: signature,
-        bodyLength: rawBody.length,
-        webhookSecretLength: webhookSecret.length,
-      });
       throw err;
     }
 
@@ -148,7 +140,6 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error('Webhook error:', error);
-    // Log the full error stack trace
     if (error instanceof Error) {
       console.error('Error stack:', error.stack);
     }
