@@ -44,21 +44,24 @@ const Dashboard = () => {
   const { data: gameCodes, isLoading, error } = useQuery({
     queryKey: ['game-codes'],
     queryFn: async () => {
-      console.log('Fetching game codes...');
+      console.log('Fetching available game codes...');
       
       const { data, error } = await supabase
         .from('game_codes')
         .select('*')
-        .eq('status', 'available');
+        .eq('status', 'available')
+        .order('created_at', { ascending: false });
       
       if (error) {
         console.error('Error fetching game codes:', error);
         throw error;
       }
 
-      console.log('Game codes fetched:', data);
+      console.log('Available game codes fetched:', data);
       return data as GameCode[];
-    }
+    },
+    // Refresh data every 10 seconds to ensure we don't show sold items
+    refetchInterval: 10000,
   });
 
   const filteredCodes = gameCodes?.filter(code => {
