@@ -13,6 +13,7 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Received webhook request');
     const signature = req.headers.get('stripe-signature');
 
     if (!signature) {
@@ -21,6 +22,8 @@ serve(async (req) => {
     }
 
     const body = await req.text();
+    console.log('Webhook raw body:', body);
+
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
       apiVersion: '2023-10-16',
     });
@@ -31,6 +34,7 @@ serve(async (req) => {
       throw new Error('Webhook secret not found');
     }
 
+    console.log('Constructing Stripe event with signature:', signature);
     const event = await stripe.webhooks.constructEventAsync(
       body,
       signature,
@@ -75,6 +79,8 @@ serve(async (req) => {
         console.error('Error checking game status:', checkError);
         throw new Error(`Error checking game status: ${checkError.message}`);
       }
+
+      console.log('Current game status:', gameCheck?.status);
 
       if (!gameCheck || gameCheck.status !== 'available') {
         console.error('Game is no longer available:', gameId);
