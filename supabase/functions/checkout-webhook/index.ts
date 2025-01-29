@@ -41,8 +41,8 @@ serve(async (req) => {
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
-      const gameId = session.metadata.gameId;
-      const buyerId = session.metadata.buyerId;
+      const gameId = session.metadata?.gameId;
+      const buyerId = session.metadata?.buyerId;
       const buyerEmail = session.customer_details?.email;
 
       if (!gameId) {
@@ -93,7 +93,7 @@ serve(async (req) => {
           updated_at: new Date().toISOString()
         })
         .eq('id', gameId)
-        .eq('status', 'available');
+        .eq('status', 'available'); // Ensure we only update if it's still available
 
       if (updateError) {
         console.error('Error updating game code:', updateError);
