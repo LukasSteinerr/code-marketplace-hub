@@ -52,6 +52,7 @@ serve(async (req) => {
 
       console.log('Processing successful checkout for game:', gameId);
 
+      // Initialize Supabase client with service role key for full access
       const supabaseAdmin = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -63,7 +64,7 @@ serve(async (req) => {
         }
       );
 
-      // First, check if the game is still available
+      // First, check if the game is still available and not already sold
       const { data: gameCheck, error: checkError } = await supabaseAdmin
         .from('game_codes')
         .select('status')
