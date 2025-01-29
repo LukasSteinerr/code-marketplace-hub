@@ -63,7 +63,24 @@ serve(async (req) => {
         }
       );
 
-      // Update game code status to sold and set the buyer_id
+      // First, check if the game is still available
+      const { data: gameCheck, error: checkError } = await supabaseAdmin
+        .from('game_codes')
+        .select('status')
+        .eq('id', gameId)
+        .single();
+
+      if (checkError) {
+        console.error('Error checking game status:', checkError);
+        throw new Error(`Error checking game status: ${checkError.message}`);
+      }
+
+      if (!gameCheck || gameCheck.status !== 'available') {
+        console.error('Game is no longer available:', gameId);
+        throw new Error('Game is no longer available');
+      }
+
+      // Update game code status to sold and set the buyer information
       const { error: updateError } = await supabaseAdmin
         .from('game_codes')
         .update({ 
@@ -75,12 +92,14 @@ serve(async (req) => {
           updated_at: new Date().toISOString()
         })
         .eq('id', gameId)
-        .eq('status', 'available'); // Only update if the code is still available
+        .eq('status', 'available');
 
       if (updateError) {
         console.error('Error updating game code:', updateError);
         throw new Error(`Error updating game code: ${updateError.message}`);
       }
+
+      console.log('Successfully updated game status to sold');
 
       // Call the confirm-code function to send the verification email
       const confirmResponse = await fetch(
