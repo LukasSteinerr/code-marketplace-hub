@@ -11,40 +11,32 @@ const Login = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if there's an active session first
-    const checkAndClearSession = async () => {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.error('Session check error:', sessionError);
+    const checkSession = async () => {
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('Session check error:', sessionError);
+          // Clear any invalid session data
+          await supabase.auth.signOut();
+          return;
+        }
+        
+        if (session?.user) {
+          navigate("/dashboard");
+        }
+      } catch (err) {
+        console.error('Error checking session:', err);
         toast({
           title: "Session Error",
-          description: "There was an error checking your session. Please try again.",
+          description: "There was an error checking your session. Please try logging in again.",
           variant: "destructive",
         });
-        return;
-      }
-      
-      if (session) {
-        try {
-          const { error } = await supabase.auth.signOut();
-          if (error) {
-            console.error('Error during sign out:', error);
-            toast({
-              title: "Sign Out Error",
-              description: "There was an error signing out. Please try again.",
-              variant: "destructive",
-            });
-          }
-        } catch (err) {
-          console.error('Error during sign out:', err);
-        }
       }
     };
     
-    checkAndClearSession();
+    checkSession();
 
-    // Set up auth state listener
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -58,7 +50,8 @@ const Login = () => {
         navigate("/dashboard");
       } else if (event === 'SIGNED_OUT') {
         console.log('User signed out');
-        localStorage.clear();
+        // Clear any remaining session data
+        localStorage.removeItem('supabase.auth.token');
         sessionStorage.clear();
         toast({
           title: "Signed Out",
