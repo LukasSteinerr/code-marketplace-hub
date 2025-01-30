@@ -37,6 +37,27 @@ const ListCode = () => {
     checkAuth();
   }, [navigate]);
 
+  const handleStripeOnboarding = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      const { data, error } = await supabase.functions.invoke('create-connect-account', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+      
+      if (error) throw error;
+      if (data?.url) window.location.href = data.url;
+      
+    } catch (error: any) {
+      console.error('Onboarding error:', error);
+    }
+  };
+
   if (isLoading) {
     return <div>Loading...</div>;
   }
@@ -47,9 +68,18 @@ const ListCode = () => {
         <div className="max-w-2xl mx-auto text-center">
           <h1 className="text-3xl font-bold mb-6">Complete Your Seller Profile</h1>
           <p className="mb-6">Please complete your seller onboarding to start listing game codes.</p>
-          <Button onClick={() => navigate("/dashboard")}>
-            Return to Dashboard
-          </Button>
+          <div className="flex justify-center gap-4">
+            <Button onClick={() => navigate("/dashboard")}>
+              Return to Dashboard
+            </Button>
+            <Button 
+              onClick={handleStripeOnboarding}
+              variant="default"
+              className="bg-gradient-to-r from-primary to-secondary hover:opacity-90"
+            >
+              Complete Seller Profile
+            </Button>
+          </div>
         </div>
       </div>
     );
