@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -55,26 +54,64 @@ serve(async (req) => {
       body: JSON.stringify({
         from: "Game Store <onboarding@resend.dev>",
         to: [game.buyer_email],
-        subject: `Your Game Code for ${game.title}`,
+        subject: `Verify Your Game Code for ${game.title}`,
         html: `
-          <h1>Thank you for your purchase!</h1>
-          <p>Here is your game code for ${game.title}:</p>
-          <div style="background-color: #f4f4f4; padding: 15px; margin: 20px 0; border-radius: 5px;">
-            <code style="font-size: 18px; font-weight: bold;">${game.code_text}</code>
-          </div>
-          <p>Please verify that this code works by redeeming it on the appropriate platform.</p>
-          <div style="margin: 30px 0;">
-            <p>After testing the code, please click one of these buttons:</p>
-            <div style="margin: 20px 0;">
-              <a href="${verifyUrl}?action=verify" style="background-color: #22c55e; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-right: 10px;">
-                Code Works - Release Payment
-              </a>
-              <a href="${verifyUrl}?action=dispute" style="background-color: #ef4444; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
-                Code Doesn't Work - Report Issue
-              </a>
-            </div>
-          </div>
-          <p>If you have any issues, please contact our support team.</p>
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+                .container { background-color: #ffffff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                .header { text-align: center; margin-bottom: 30px; }
+                .game-code { background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin: 20px 0; text-align: center; }
+                .code { font-family: monospace; font-size: 24px; color: #2563eb; font-weight: bold; }
+                .button-container { text-align: center; margin: 30px 0; }
+                .button { display: inline-block; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; margin: 0 10px; }
+                .success-button { background-color: #22c55e; color: white; }
+                .error-button { background-color: #ef4444; color: white; }
+                .instructions { background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-top: 20px; }
+                .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header">
+                  <h1>Your Game Code is Ready! 🎮</h1>
+                </div>
+                
+                <p>Thank you for your purchase of <strong>${game.title}</strong>!</p>
+                
+                <div class="game-code">
+                  <p>Here's your game code:</p>
+                  <p class="code">${game.code_text}</p>
+                  <p>Platform: <strong>${game.platform}</strong></p>
+                </div>
+
+                <div class="instructions">
+                  <h2>Next Steps:</h2>
+                  <ol>
+                    <li>Copy your game code</li>
+                    <li>Redeem it on your ${game.platform} account</li>
+                    <li>Verify that the code works by clicking the appropriate button below</li>
+                  </ol>
+                </div>
+
+                <div class="button-container">
+                  <a href="${verifyUrl}?action=verify" class="button success-button">
+                    ✅ Code Works - Release Payment
+                  </a>
+                  <a href="${verifyUrl}?action=dispute" class="button error-button">
+                    ❌ Code Doesn't Work
+                  </a>
+                </div>
+
+                <div class="footer">
+                  <p>Having trouble? Contact our support team for assistance.</p>
+                  <p>Please verify the code within 24 hours to ensure timely payment to the seller.</p>
+                </div>
+              </div>
+            </body>
+          </html>
         `,
       }),
     });
