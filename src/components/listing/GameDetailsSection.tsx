@@ -36,7 +36,7 @@ export const GameDetailsSection = ({ form }: GameDetailsSectionProps) => {
                   <SelectValue placeholder="Select a game" />
                 </SelectTrigger>
               </FormControl>
-              <SelectContent>
+              <SelectContent className="bg-card border-border">
                 {GAME_TITLES.map((title) => (
                   <SelectItem key={title} value={title}>
                     {title}
