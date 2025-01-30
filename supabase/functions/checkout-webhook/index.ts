@@ -14,24 +14,20 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    // Get the stripe signature from headers
     const signature = req.headers.get('stripe-signature');
     if (!signature) {
       console.error('No stripe signature found in headers');
       throw new Error('No stripe signature found');
     }
 
-    // Get the raw request body
     const rawBody = await req.text();
-    console.log('Raw body received:', rawBody.substring(0, 100) + '...'); // Log first 100 chars for debugging
+    console.log('Raw body received:', rawBody.substring(0, 100) + '...');
 
-    // Verify and construct the event
     let event;
     try {
       event = await stripe.webhooks.constructEventAsync(
@@ -52,7 +48,6 @@ serve(async (req) => {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       
-      // Create Supabase client
       const supabaseClient = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -60,7 +55,6 @@ serve(async (req) => {
 
       console.log('Updating game code:', session.metadata.gameId);
 
-      // Update game code status and buyer information
       const { error: updateError } = await supabaseClient
         .from('game_codes')
         .update({
@@ -74,6 +68,32 @@ serve(async (req) => {
       if (updateError) {
         console.error('Error updating game code:', updateError);
         throw updateError;
+      }
+
+      // Send purchase notification emails
+      try {
+        const response = await fetch(
+          `${Deno.env.get('SUPABASE_URL')}/functions/v1/send-purchase-emails`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            },
+            body: JSON.stringify({
+              gameId: session.metadata.gameId,
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          const error = await response.text();
+          console.error('Error sending purchase emails:', error);
+        } else {
+          console.log('Purchase emails sent successfully');
+        }
+      } catch (error) {
+        console.error('Error calling send-purchase-emails function:', error);
       }
 
       console.log('Successfully updated game code');
