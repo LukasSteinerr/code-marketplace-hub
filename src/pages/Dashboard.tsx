@@ -60,7 +60,6 @@ const Dashboard = () => {
       console.log('Available game codes fetched:', data);
       return data as GameCode[];
     },
-    // Refresh data every 10 seconds to ensure we don't show sold items
     refetchInterval: 10000,
   });
 
@@ -87,7 +86,10 @@ const Dashboard = () => {
         {/* Header Section */}
         <div className="bg-card/10 backdrop-blur-sm rounded-xl p-4 md:p-6 border border-border/10">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 md:gap-6">
-            <div className="flex items-center gap-3 w-full md:w-auto">
+            <div 
+              onClick={() => navigate('/dashboard')} 
+              className="flex items-center gap-3 w-full md:w-auto cursor-pointer hover:opacity-80 transition-opacity"
+            >
               <div className="p-2 bg-primary/10 rounded-lg">
                 <Package className="h-6 w-6 text-primary" />
               </div>
